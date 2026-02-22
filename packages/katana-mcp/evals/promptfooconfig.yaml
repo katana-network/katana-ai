@@ -1,0 +1,31 @@
+# Katana MCP Server — Promptfoo Eval Suite
+# Run all:   yarn eval
+# Run suite: yarn eval:wallet (or sushi, morpho, analytics, merkl)
+# View:      yarn eval:view
+
+description: "Katana MCP Server — 26 tools, live RPC"
+
+providers:
+  - id: mcp
+    config:
+      enabled: true
+      server:
+        command: node
+        args: ["dist/server.js"]
+        name: katana
+
+prompts:
+  - "{{prompt}}"
+
+defaultTest:
+  options:
+    timeout: 30000
+
+tests:
+  - file://suites/wallet.yaml
+  - file://suites/analytics.yaml
+  - file://suites/merkl.yaml
+  - file://suites/sushi.yaml
+  - file://suites/morpho.yaml
+
+sharing: false

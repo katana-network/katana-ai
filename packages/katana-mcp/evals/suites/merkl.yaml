@@ -1,0 +1,87 @@
+# Merkl tools: get_merkl_opportunities, get_merkl_user_rewards, build_claim_rewards
+
+description: "Merkl reward tools (3)"
+
+providers:
+  - id: mcp
+    config:
+      enabled: true
+      server:
+        command: node
+        args: ["dist/server.js"]
+        name: katana
+
+prompts:
+  - "{{prompt}}"
+
+defaultTest:
+  options:
+    timeout: 30000
+
+tests:
+  # ── get_merkl_opportunities ───────────────────────────────────────────────
+  - description: "get_merkl_opportunities — all protocols"
+    vars:
+      prompt: '{"tool": "get_merkl_opportunities", "args": {}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); typeof o.totalOpportunities === 'number'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o.opportunities)"
+
+  - description: "get_merkl_opportunities — filter to morpho"
+    vars:
+      prompt: '{"tool": "get_merkl_opportunities", "args": {"protocol": "morpho"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
+
+  - description: "get_merkl_opportunities — filter to LEND action"
+    vars:
+      prompt: '{"tool": "get_merkl_opportunities", "args": {"action": "LEND"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o.opportunities)"
+
+  # ── get_merkl_user_rewards ────────────────────────────────────────────────
+  - description: "get_merkl_user_rewards — address with no rewards"
+    vars:
+      prompt: '{"tool": "get_merkl_user_rewards", "args": {"userAddress": "0x0000000000000000000000000000000000000001"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.totalRewardTokens === 0"
+
+  - description: "get_merkl_user_rewards — valid response structure"
+    vars:
+      prompt: '{"tool": "get_merkl_user_rewards", "args": {"userAddress": "0xEE7D8BCFb72bC1880D0Cf19822eB0A2e6577aB62"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.userAddress && o.chainId === 747474"
+
+  # ── build_claim_rewards ───────────────────────────────────────────────────
+  - description: "build_claim_rewards — no rewards returns error"
+    vars:
+      prompt: '{"tool": "build_claim_rewards", "args": {"userAddress": "0x0000000000000000000000000000000000000001"}}'
+    assert:
+      - type: javascript
+        value: "output.toLowerCase().includes('error') || output.toLowerCase().includes('no ')"
+
+  - description: "build_claim_rewards — valid address returns tx or no-rewards error"
+    vars:
+      prompt: '{"tool": "build_claim_rewards", "args": {"userAddress": "0xEE7D8BCFb72bC1880D0Cf19822eB0A2e6577aB62"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          if (o.error) return true;
+          return o.transaction && o.transaction.to.toLowerCase() === '0x3ef3d8ba38ebe18db133cec108f4d14ce00dd9ae';

@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "name": "katana-skills",
+  "description": "Agent skills for Katana Network",
+  "workspaces": [
+    "packages/*"
+  ]
+}

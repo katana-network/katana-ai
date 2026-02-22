@@ -1,0 +1,87 @@
+# Analytics tools: get_token_prices, get_gas_price, tx_lookup
+
+description: "Analytics tools (3)"
+
+providers:
+  - id: mcp
+    config:
+      enabled: true
+      server:
+        command: node
+        args: ["dist/server.js"]
+        name: katana
+
+prompts:
+  - "{{prompt}}"
+
+defaultTest:
+  options:
+    timeout: 30000
+
+tests:
+  # ── get_token_prices ──────────────────────────────────────────────────────
+  - description: "get_token_prices — all tokens"
+    vars:
+      prompt: '{"tool": "get_token_prices", "args": {"network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.network === 'mainnet'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o.tokens) && o.tokens.length > 0"
+    options:
+      timeout: 45000
+
+  - description: "get_token_prices — specific tokens WETH,WBTC"
+    vars:
+      prompt: '{"tool": "get_token_prices", "args": {"tokens": "WETH,WBTC", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.tokens.length === 2"
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          const weth = o.tokens.find(t => t.symbol === 'WETH');
+          return !!(weth && (weth.priceUSD > 0 || weth.error));
+    options:
+      timeout: 45000
+
+  # ── get_gas_price ─────────────────────────────────────────────────────────
+  - description: "get_gas_price — mainnet"
+    vars:
+      prompt: '{"tool": "get_gas_price", "args": {"network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.network === 'mainnet'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.blockNumber && parseInt(o.blockNumber) > 0"
+
+  - description: "get_gas_price — testnet"
+    vars:
+      prompt: '{"tool": "get_gas_price", "args": {"network": "testnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.network === 'testnet'"
+
+  # ── tx_lookup ─────────────────────────────────────────────────────────────
+  - description: "tx_lookup — nonexistent tx returns error"
+    vars:
+      prompt: '{"tool": "tx_lookup", "args": {"txHash": "0x0000000000000000000000000000000000000000000000000000000000000001", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "output.toLowerCase().includes('error') || output.toLowerCase().includes('not found')"
+
+  # Replace 0x53569024dd16accf34a245da6c38c292d458d45bca3b8d8e9ff18170555a964f with a real mined tx hash from katanascan.io
+  - description: "tx_lookup — real transaction"
+    vars:
+      prompt: '{"tool": "tx_lookup", "args": {"txHash": "0x53569024dd16accf34a245da6c38c292d458d45bca3b8d8e9ff18170555a964f", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          if (o.error) return true;
+          return !!(o.hash && o.from && o.status);

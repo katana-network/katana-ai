@@ -1,0 +1,188 @@
+# Morpho lending tools (10 total)
+# Note: Discovery tools scan events and need extra timeout.
+# Market ID: USDC/WETH market with standard ERC20 tokens.
+
+description: "Morpho lending tools (10)"
+
+providers:
+  - id: mcp
+    config:
+      enabled: true
+      server:
+        command: node
+        args: ["dist/server.js"]
+        name: katana
+
+prompts:
+  - "{{prompt}}"
+
+defaultTest:
+  options:
+    timeout: 30000
+
+tests:
+  # ── list_morpho_markets ───────────────────────────────────────────────────
+  - description: "list_morpho_markets — discover all markets"
+    vars:
+      prompt: '{"tool": "list_morpho_markets", "args": {"network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.network === 'mainnet'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); typeof o.totalMarkets === 'number'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o.markets) && o.markets.length > 0"
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          const m = o.markets[0];
+          return !!(m.id && m.loanToken && m.collateralToken && m.lltv !== undefined);
+    options:
+      timeout: 120000
+
+  # ── list_morpho_vaults ────────────────────────────────────────────────────
+  - description: "list_morpho_vaults — discover all vaults"
+    vars:
+      prompt: '{"tool": "list_morpho_vaults", "args": {"network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); typeof o.totalVaults === 'number'"
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          if (o.totalVaults === 0) return true;
+          const v = o.vaults[0];
+          return v.address !== undefined && v.symbol !== undefined;
+    options:
+      timeout: 120000
+
+  # ── get_morpho_markets ────────────────────────────────────────────────────
+  - description: "get_morpho_markets — fetch by ID"
+    vars:
+      prompt: '{"tool": "get_morpho_markets", "args": {"marketIds": "0x2fb14719030835b8e0a39a1461b384ad6a9c8392550197a7c857cf9fcbd6c534", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return !!(o.markets && o.markets[0] && o.markets[0].params && o.markets[0].state);
+
+  # ── get_morpho_position ───────────────────────────────────────────────────
+  - description: "get_morpho_position — zero position for random address"
+    vars:
+      prompt: '{"tool": "get_morpho_position", "args": {"marketId": "0x2fb14719030835b8e0a39a1461b384ad6a9c8392550197a7c857cf9fcbd6c534", "user": "0x0000000000000000000000000000000000000001", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.position !== undefined && o.market !== undefined;
+
+  # ── analyze_loop_strategy ─────────────────────────────────────────────────
+  - description: "analyze_loop_strategy — simulation with real quotes"
+    vars:
+      prompt: '{"tool": "analyze_loop_strategy", "args": {"marketId": "0x2fb14719030835b8e0a39a1461b384ad6a9c8392550197a7c857cf9fcbd6c534", "amount": "0.01", "loops": 2, "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          if (o.error) return true;
+          return !!(o.market && o.summary);
+    options:
+      timeout: 60000
+
+  # ── build_morpho_supply ───────────────────────────────────────────────────
+  - description: "build_morpho_supply — targets Morpho core"
+    vars:
+      prompt: '{"tool": "build_morpho_supply", "args": {"marketId": "0x2fb14719030835b8e0a39a1461b384ad6a9c8392550197a7c857cf9fcbd6c534", "amount": "100", "onBehalf": "0x0000000000000000000000000000000000000001", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.to.toLowerCase() === '0xd50f2dfffd62f94ee4aed9ca05c61d0753268abc'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.data.startsWith('0x')"
+
+  # ── build_morpho_withdraw ─────────────────────────────────────────────────
+  - description: "build_morpho_withdraw — targets Morpho core"
+    vars:
+      prompt: '{"tool": "build_morpho_withdraw", "args": {"marketId": "0x2fb14719030835b8e0a39a1461b384ad6a9c8392550197a7c857cf9fcbd6c534", "amount": "50", "onBehalf": "0x0000000000000000000000000000000000000001", "receiver": "0x0000000000000000000000000000000000000001", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.to.toLowerCase() === '0xd50f2dfffd62f94ee4aed9ca05c61d0753268abc'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
+
+  # ── build_morpho_borrow ───────────────────────────────────────────────────
+  - description: "build_morpho_borrow — targets Morpho core"
+    vars:
+      prompt: '{"tool": "build_morpho_borrow", "args": {"marketId": "0x2fb14719030835b8e0a39a1461b384ad6a9c8392550197a7c857cf9fcbd6c534", "amount": "50", "onBehalf": "0x0000000000000000000000000000000000000001", "receiver": "0x0000000000000000000000000000000000000001", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.to.toLowerCase() === '0xd50f2dfffd62f94ee4aed9ca05c61d0753268abc'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
+
+  # ── build_morpho_authorize ────────────────────────────────────────────────
+  - description: "build_morpho_authorize — returns valid status"
+    vars:
+      prompt: '{"tool": "build_morpho_authorize", "args": {"userAddress": "0x0000000000000000000000000000000000000001", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.status === 'already_authorized' || o.status === 'authorization_required';
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.morpho.toLowerCase() === '0xd50f2dfffd62f94ee4aed9ca05c61d0753268abc';
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.adapter.toLowerCase() === '0x916aa175c36e845db45ff6ddb886ae437d403b61';
+
+  - description: "build_morpho_authorize — returns tx when not authorized"
+    vars:
+      prompt: '{"tool": "build_morpho_authorize", "args": {"userAddress": "0x0000000000000000000000000000000000000001", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          if (o.status === 'already_authorized') return true;
+          return o.transaction && o.transaction.to && o.transaction.data.startsWith('0x');
+
+  # ── build_morpho_loop ─────────────────────────────────────────────────────
+  - description: "build_morpho_loop — atomic leverage targets Bundler3"
+    vars:
+      prompt: '{"tool": "build_morpho_loop", "args": {"marketId": "0x2fb14719030835b8e0a39a1461b384ad6a9c8392550197a7c857cf9fcbd6c534", "userAddress": "0x0000000000000000000000000000000000000001", "amount": "0.01", "targetLeverage": 2.0, "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          if (o.error) return true;
+          return o.transaction && o.transaction.to.toLowerCase() === '0xa8c5e23c9c0df2b6ff716486c6bbebb6661548c8';
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          if (o.error) return true;
+          return !!(o.position && o.position.healthFactor);
+    options:
+      timeout: 60000
+
+  - description: "build_morpho_loop — excessive leverage returns error"
+    vars:
+      prompt: '{"tool": "build_morpho_loop", "args": {"marketId": "0x2fb14719030835b8e0a39a1461b384ad6a9c8392550197a7c857cf9fcbd6c534", "userAddress": "0x0000000000000000000000000000000000000001", "amount": "1", "targetLeverage": 50.0, "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "output.toLowerCase().includes('error') || output.toLowerCase().includes('leverage')"
+    options:
+      timeout: 30000

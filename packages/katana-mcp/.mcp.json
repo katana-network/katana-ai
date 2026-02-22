@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "katana": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["dist/server.js", "--stdio"],
+      "env": {
+        "KATANA_RPC_URL": "https://rpc.katana.network/",
+        "BOKUTO_RPC_URL": "https://rpc-bokuto.katanarpc.com"
+      },
+      "description": "Katana Network DeFi MCP server — wallet, Sushi DEX, Morpho lending, analytics"
+    }
+  }
+}

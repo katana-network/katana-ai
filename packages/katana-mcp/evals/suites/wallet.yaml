@@ -1,0 +1,128 @@
+# Wallet tools: get_balances, build_wrap_eth, build_unwrap_eth, build_transfer, build_approve
+
+description: "Wallet tools (5)"
+
+providers:
+  - id: mcp
+    config:
+      enabled: true
+      server:
+        command: node
+        args: ["dist/server.js"]
+        name: katana
+
+prompts:
+  - "{{prompt}}"
+
+defaultTest:
+  options:
+    timeout: 30000
+
+tests:
+  # ── get_balances ──────────────────────────────────────────────────────────
+  - description: "get_balances — all tokens for known address"
+    vars:
+      prompt: '{"tool": "get_balances", "args": {"address": "0xEE7D8BCFb72bC1880D0Cf19822eB0A2e6577aB62", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.network === 'mainnet'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eth && o.eth.balance !== undefined"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o.tokens) && o.tokens.length > 0"
+
+  - description: "get_balances — filter to WETH,USDC"
+    vars:
+      prompt: '{"tool": "get_balances", "args": {"address": "0xEE7D8BCFb72bC1880D0Cf19822eB0A2e6577aB62", "network": "mainnet", "tokens": "WETH,USDC"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.tokens.length <= 2"
+
+  - description: "get_balances — zero-balance address still returns valid structure"
+    vars:
+      prompt: '{"tool": "get_balances", "args": {"address": "0x0000000000000000000000000000000000000001", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eth !== undefined"
+
+  # ── build_wrap_eth ────────────────────────────────────────────────────────
+  - description: "build_wrap_eth — 1.0 ETH on mainnet"
+    vars:
+      prompt: '{"tool": "build_wrap_eth", "args": {"amount": "1.0", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.to.toLowerCase() === '0xee7d8bcfb72bc1880d0cf19822eb0a2e6577ab62'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.value === '1000000000000000000'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.data.startsWith('0x')"
+
+  # ── build_unwrap_eth ──────────────────────────────────────────────────────
+  - description: "build_unwrap_eth — 0.5 WETH"
+    vars:
+      prompt: '{"tool": "build_unwrap_eth", "args": {"amount": "0.5", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.to.toLowerCase() === '0xee7d8bcfb72bc1880d0cf19822eb0a2e6577ab62'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.value === '0'"
+
+  # ── build_transfer ────────────────────────────────────────────────────────
+  - description: "build_transfer — native ETH"
+    vars:
+      prompt: '{"tool": "build_transfer", "args": {"to": "0x0000000000000000000000000000000000000001", "token": "ETH", "amount": "0.1", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.to === '0x0000000000000000000000000000000000000001'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
+
+  - description: "build_transfer — USDC (ERC20)"
+    vars:
+      prompt: '{"tool": "build_transfer", "args": {"to": "0x0000000000000000000000000000000000000001", "token": "USDC", "amount": "100", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.to.toLowerCase() === '0x203a662b0bd271a6ed5a60edfbd04bfce608fd36'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.data.startsWith('0xa9059cbb')"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
+
+  - description: "build_transfer — unknown token returns error"
+    vars:
+      prompt: '{"tool": "build_transfer", "args": {"to": "0x0000000000000000000000000000000000000001", "token": "FAKECOIN", "amount": "1", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "output.toLowerCase().includes('error') || output.toLowerCase().includes('not found')"
+
+  # ── build_approve ─────────────────────────────────────────────────────────
+  - description: "build_approve — max USDC approval for Morpho"
+    vars:
+      prompt: '{"tool": "build_approve", "args": {"token": "USDC", "spender": "0xD50F2DffFd62f94Ee4AEd9ca05C61d0753268aBc", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.to.toLowerCase() === '0x203a662b0bd271a6ed5a60edfbd04bfce608fd36'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.data.startsWith('0x095ea7b3')"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
+
+  - description: "build_approve — exact WETH amount for Sushi V3 Router"
+    vars:
+      prompt: '{"tool": "build_approve", "args": {"token": "WETH", "spender": "0x4e1d81A3E627b9294532e990109e4c21d217376C", "amount": "10", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.data.startsWith('0x095ea7b3') && o.chainId === 747474"

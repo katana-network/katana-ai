@@ -1,0 +1,120 @@
+# Sushi DEX tools: get_swap_quote, build_swap, get_pools, build_add_liquidity_v3, build_add_liquidity_v2
+
+description: "Sushi DEX tools (5)"
+
+providers:
+  - id: mcp
+    config:
+      enabled: true
+      server:
+        command: node
+        args: ["dist/server.js"]
+        name: katana
+
+prompts:
+  - "{{prompt}}"
+
+defaultTest:
+  options:
+    timeout: 30000
+
+tests:
+  # ── get_swap_quote ────────────────────────────────────────────────────────
+  - description: "get_swap_quote — USDC to WETH"
+    vars:
+      prompt: '{"tool": "get_swap_quote", "args": {"tokenIn": "USDC", "tokenOut": "WETH", "amountIn": "1000", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.network === 'mainnet'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o.quotes) && o.quotes.length > 0"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.bestQuote !== null && parseFloat(o.bestQuote.amountOut) > 0"
+
+  - description: "get_swap_quote — WETH to USDC (reverse)"
+    vars:
+      prompt: '{"tool": "get_swap_quote", "args": {"tokenIn": "WETH", "tokenOut": "USDC", "amountIn": "0.5", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.bestQuote && parseFloat(o.bestQuote.amountOut) > 0"
+
+  - description: "get_swap_quote — unknown token returns error"
+    vars:
+      prompt: '{"tool": "get_swap_quote", "args": {"tokenIn": "FAKECOIN", "tokenOut": "WETH", "amountIn": "100", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "output.toLowerCase().includes('error') || output.toLowerCase().includes('not found')"
+
+  # ── build_swap ────────────────────────────────────────────────────────────
+  - description: "build_swap — V3 USDC to WETH targets V3 router"
+    vars:
+      prompt: '{"tool": "build_swap", "args": {"tokenIn": "USDC", "tokenOut": "WETH", "amountIn": "100", "recipient": "0x0000000000000000000000000000000000000001", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.to.toLowerCase() === '0x4e1d81a3e627b9294532e990109e4c21d217376c'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.data.startsWith('0x')"
+
+  - description: "build_swap — V2 targets V2 router"
+    vars:
+      prompt: '{"tool": "build_swap", "args": {"tokenIn": "USDC", "tokenOut": "WETH", "amountIn": "100", "recipient": "0x0000000000000000000000000000000000000001", "version": "v2", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.to.toLowerCase() === '0x69cc349932ae18ed406eeb917d79b9b3033fb68e'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
+
+  # ── get_pools ─────────────────────────────────────────────────────────────
+  - description: "get_pools — WETH/USDC pair"
+    vars:
+      prompt: '{"tool": "get_pools", "args": {"tokenA": "WETH", "tokenB": "USDC", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); typeof o.poolsFound === 'number'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o.pools)"
+    options:
+      timeout: 45000
+
+  - description: "get_pools — returns tick data when pools exist"
+    vars:
+      prompt: '{"tool": "get_pools", "args": {"tokenA": "WETH", "tokenB": "USDC", "tickDepth": 2, "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          if (o.poolsFound === 0) return true;
+          const p = o.pools[0];
+          return !!(p.poolAddress && p.fee !== undefined && p.currentTick !== undefined);
+    options:
+      timeout: 45000
+
+  # ── build_add_liquidity_v3 ────────────────────────────────────────────────
+  - description: "build_add_liquidity_v3 — targets PositionManager"
+    vars:
+      prompt: '{"tool": "build_add_liquidity_v3", "args": {"tokenA": "WETH", "tokenB": "USDC", "amountA": "0.1", "amountB": "200", "fee": 3000, "tickLower": -887220, "tickUpper": 887220, "recipient": "0x0000000000000000000000000000000000000001", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.to.toLowerCase() === '0x2659c6085d26144117d904c46b48b6d180393d27'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
+
+  # ── build_add_liquidity_v2 ────────────────────────────────────────────────
+  - description: "build_add_liquidity_v2 — targets V2 Router"
+    vars:
+      prompt: '{"tool": "build_add_liquidity_v2", "args": {"tokenA": "WETH", "tokenB": "USDC", "amountA": "0.1", "amountB": "200", "recipient": "0x0000000000000000000000000000000000000001", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.to.toLowerCase() === '0x69cc349932ae18ed406eeb917d79b9b3033fb68e'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
