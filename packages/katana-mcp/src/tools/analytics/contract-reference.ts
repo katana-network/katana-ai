@@ -12,11 +12,11 @@ const REFERENCE = {
     v2Factory: "0x72D111b4d6f31B38919ae39779f570b747d6Acd9",
     v3FeeTiers: [100, 500, 3000, 10000],
     keyFunctions: {
-      factory: "getPool(address,address,uint24)→address",
-      router: "exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160))→uint256",
-      positionManager: "mint((...))→(uint256 tokenId,uint128,uint256,uint256) | increaseLiquidity((uint256 tokenId,uint256,uint256,uint256,uint256,uint256))→(uint128,uint256,uint256) | collect((uint256 tokenId,address,uint128,uint128))→(uint256,uint256)",
-      quoter: "quoteExactInputSingle((address,address,uint256,uint24,uint160))→(uint256,uint160,uint32,uint256)",
-      pool: "slot0()→(uint160 sqrtPriceX96,int24 tick,...) | observe(uint32[])→(int56[],uint160[]) | liquidity()→uint128",
+      factory: "getPool(address tokenA, address tokenB, uint24 fee)→address",
+      router: "exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96))→uint256 amountOut",
+      positionManager: "mint((address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint256 amount0Desired, uint256 amount1Desired, uint256 amount0Min, uint256 amount1Min, address recipient, uint256 deadline))→(uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) | increaseLiquidity((uint256 tokenId, uint256 amount0Desired, uint256 amount1Desired, uint256 amount0Min, uint256 amount1Min, uint256 deadline))→(uint128 liquidity, uint256 amount0, uint256 amount1) | collect((uint256 tokenId, address recipient, uint128 amount0Max, uint128 amount1Max))→(uint256 amount0, uint256 amount1)",
+      quoter: "quoteExactInputSingle((address tokenIn, address tokenOut, uint256 amountIn, uint24 fee, uint160 sqrtPriceLimitX96))→(uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate)",
+      pool: "slot0()→(uint160 sqrtPriceX96, int24 tick, ...) | observe(uint32[] secondsAgos)→(int56[] tickCumulatives, uint160[] secondsPerLiquidityCumulativeX128s) | liquidity()→uint128",
     },
   },
   morpho: {
@@ -27,17 +27,24 @@ const REFERENCE = {
     adaptiveCurveIrm: "0x4F708C0ae7deD3d74736594C2109C2E3c065B428",
     oracleFactory: "0x7D047fB910Bc187C18C81a69E30Fa164f8c536eC",
     keyFunctions: {
-      morpho: "supply((address,address,address,address,uint256),uint256,uint256,address,bytes) | borrow(...) | withdraw(...) | supplyCollateral(...) | repay(...) | position(bytes32,address)→(uint256,uint128,uint128) | market(bytes32)→(uint128,uint128,uint128,uint128,uint128,uint128) | idToMarketParams(bytes32)→(address,address,address,address,uint256) | setAuthorization(address,bool) | flashLoan(address,uint256,bytes)",
-      bundler3: "multicall((address to,bytes data,uint256 value,bool skipRevert,bytes32 callbackHash)[]) | reenter(Call[])",
+      morpho: "supply((address loanToken, address collateralToken, address oracle, address irm, uint256 lltv) marketParams, uint256 assets, uint256 shares, address onBehalf, bytes data) | borrow(marketParams, uint256 assets, uint256 shares, address onBehalf, address receiver) | withdraw(marketParams, uint256 assets, uint256 shares, address onBehalf, address receiver) | supplyCollateral(marketParams, uint256 assets, address onBehalf, bytes data) | repay(marketParams, uint256 assets, uint256 shares, address onBehalf, bytes data) | position(bytes32 id, address user)→(uint256 supplyShares, uint128 borrowShares, uint128 collateral) | market(bytes32 id)→(uint128 totalSupplyAssets, uint128 totalSupplyShares, uint128 totalBorrowAssets, uint128 totalBorrowShares, uint128 lastUpdate, uint128 fee) | idToMarketParams(bytes32 id)→(address loanToken, address collateralToken, address oracle, address irm, uint256 lltv) | setAuthorization(address authorized, bool newIsAuthorized) | flashLoan(address token, uint256 assets, bytes data)",
+      bundler3: "multicall((address to, bytes data, uint256 value, bool skipRevert, bytes32 callbackHash)[] calls) | reenter(Call[] calls)",
     },
   },
   merkl: {
     distributor: "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae",
     api: "https://api.merkl.xyz/v4",
     keyFunctions: {
-      distributor: "claim(address[] users,address[] tokens,uint256[] amounts,bytes32[][] proofs) | claimed(address,address)→uint256 | toggleOperator(address user,address operator) | getMerkleRoot()→bytes32",
+      distributor: "claim(address[] users, address[] tokens, uint256[] amounts, bytes32[][] proofs) | claimed(address user, address token)→uint256 cumulative | toggleOperator(address user, address operator) | getMerkleRoot()→bytes32",
     },
-    note: "amounts in claim() are CUMULATIVE totals, not deltas. Proofs from API, updated ~8h.",
+    claimFlow: {
+      step1: "GET /v4/users/{address}/rewards?chainId=747474 → returns [{chain, rewards: [{amount, claimed, proofs[], token: {address, decimals, symbol, price}}]}]",
+      step2: "Filter rewards where BigInt(amount) - BigInt(claimed) > 0 and proofs.length > 0",
+      step3: "Build parallel arrays: users[] (repeat user addr per token), tokens[], amounts[] (CUMULATIVE total from API, NOT the delta), proofs[][]",
+      step4: "Call distributor.claim(users, tokens, amounts, proofs) — batches all tokens in one tx",
+      operator: "toggleOperator(user, operator) lets another address claim on the user's behalf. Not needed for self-claims.",
+      timing: "Rewards computed offchain ~2h, merkle root pushed onchain ~8h. Proofs may lag behind displayed rewards.",
+    },
   },
   infra: {
     multicall3: "0xcA11bde05977b3631167028862bE2a173976CA11",

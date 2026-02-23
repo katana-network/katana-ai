@@ -1,7 +1,7 @@
 ---
 name: analytics
 description: Activate when the user asks about token prices, gas costs, transaction status, or general Katana Network chain data.
-allowed-tools: get_token_prices, get_gas_price, tx_lookup
+allowed-tools: get_token_prices, get_gas_price, tx_lookup, get_contract_reference
 model: opus
 license: MIT
 metadata:
@@ -47,6 +47,14 @@ Get current gas prices and cost estimates for common transaction types.
 
 Returns EIP-1559 base fee, estimated max fee, priority fee, and gas cost estimates for: ETH transfer, ERC20 transfer, approve, V3 swap, Morpho supply, Morpho borrow. Useful for quoting gas costs before building transactions.
 
+### get_contract_reference
+
+Get the full static reference of all Katana contract addresses, named function signatures, token list, and protocol details. No RPC calls — instant response.
+
+Returns: all Sushi, Morpho, Merkl, and infra contract addresses; key function signatures with **named parameters** (e.g. `exactInputSingle((address tokenIn, address tokenOut, uint24 fee, ...))`); the Merkl claim flow (API endpoint, array construction, timing); and the complete token list with decimals.
+
+**Use this first** when building raw contract integrations, designing new tooling, or exploring what's available on Katana. Not needed when using the other MCP tools (they handle contract details internally).
+
 ### tx_lookup
 
 Look up a transaction by hash. Returns status, block, from/to, value, gas used, cost in ETH, log count, and explorer link.
@@ -64,6 +72,8 @@ Statuses: `success`, `reverted`, or `pending`. On Katana with 1-second blocks, p
 | "How much will gas cost?" | `get_gas_price` — includes estimates per tx type |
 | "Did my transaction go through?" | `tx_lookup` with the tx hash |
 | Show USD values for a portfolio | `get_token_prices` then multiply by balances from `get_balances` |
+| "What contracts are on Katana?" | `get_contract_reference` — all addresses, ABIs, and token list |
+| Building a raw integration | `get_contract_reference` — named function sigs for direct contract calls |
 
 ## Cross-References
 
