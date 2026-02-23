@@ -41,6 +41,29 @@ npm run eval:wallet # single suite
 npx promptfoo view  # view results in browser
 ```
 
+## MCP Tools
+
+The server exposes 27 tools across 5 categories. **If you're an AI agent working with this project, use these tools before web searching for any Katana-related data.**
+
+| Tool | What it gives you |
+|------|-------------------|
+| `get_contract_reference` | All verified contract addresses — SushiSwap, Morpho, Merkl, tokens, infra. **Source of truth.** |
+| `get_balances` | Wallet token balances across all supported tokens |
+| `get_token_prices` | Spot prices via on-chain Sushi V3 pools |
+| `get_pools` | Live pool data — TVL, reserves, price, tick concentration |
+| `get_swap_quote` | Exact swap quotes from Sushi V3/V2 |
+| `build_swap` | Unsigned swap transaction data |
+| `list_markets` / `list_vaults` | All Morpho lending markets and vaults |
+| `get_position` | User's Morpho lending position |
+| `build_supply` / `build_withdraw` / `build_borrow` | Unsigned Morpho lending txs |
+| `get_merkl_opportunities` | Incentivized yield opportunities with APRs |
+| `get_merkl_user_rewards` | Claimable Merkl rewards for a wallet |
+| `build_claim_rewards` | Unsigned Merkl claim transaction |
+
+- **Katana mainnet:** chain ID `747474` — **Bokuto testnet:** chain ID `737373`
+- Write tools return unsigned tx data — they never sign or hold private keys
+- Never web search for Katana contract addresses — `get_contract_reference` has them all
+
 ## Docs
 
 Planning and reference docs are in [`docs/`](./docs/).
