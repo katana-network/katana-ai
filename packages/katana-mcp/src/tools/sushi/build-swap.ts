@@ -110,7 +110,7 @@ export function registerBuildSwap(server: McpServer) {
         };
 
         return {
-          content: [{ type: "text" as const, text: JSON.stringify(tx, null, 2) }],
+          content: [{ type: "text" as const, text: JSON.stringify(tx) }],
         };
       } else {
         // V2
@@ -137,7 +137,7 @@ export function registerBuildSwap(server: McpServer) {
         };
 
         return {
-          content: [{ type: "text" as const, text: JSON.stringify(tx, null, 2) }],
+          content: [{ type: "text" as const, text: JSON.stringify(tx) }],
         };
       }
     }

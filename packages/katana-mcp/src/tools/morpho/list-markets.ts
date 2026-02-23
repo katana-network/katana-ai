@@ -119,7 +119,7 @@ export function registerListMarkets(server: McpServer) {
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify({ network, totalMarkets: 0, markets: [], note: "No markets found." }, null, 2),
+              text: JSON.stringify({ network, totalMarkets: 0, markets: [], note: "No markets found." }),
             },
           ],
         };
@@ -147,8 +147,6 @@ export function registerListMarkets(server: McpServer) {
             totalSupply: formatUnits(totalSupplyAssets, m.loanToken.decimals),
             totalBorrow: formatUnits(totalBorrowAssets, m.loanToken.decimals),
             utilization: `${utilization.toFixed(2)}%`,
-            lastUpdate: new Date(Number(state[4]) * 1000).toISOString(),
-            fee: `${Number(state[5]) / 1e16}%`,
           };
         })
       );
@@ -164,8 +162,12 @@ export function registerListMarkets(server: McpServer) {
           if ("error" in m) return true;
           return m.totalSupply !== "0" || m.totalBorrow !== "0";
         })
-        // Strip oracle/irm from output to save tokens
-        .map(({ oracle, irm, ...rest }: any) => rest);
+        // Strip oracle/irm and collapse token objects to symbols
+        .map(({ oracle, irm, loanToken, collateralToken, ...rest }: any) => ({
+          ...rest,
+          loanToken: loanToken?.symbol ?? loanToken,
+          collateralToken: collateralToken?.symbol ?? collateralToken,
+        }));
 
       return {
         content: [

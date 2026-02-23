@@ -283,13 +283,12 @@ export function registerGetPools(server: McpServer) {
             // TickLens may not be available — return pool data without ticks
           }
 
-          // Format tick ranges for output
-          const tickMap = tickConcentration.map((range) => ({
-            tickRange: `[${range.tickLower}, ${range.tickUpper})`,
-            priceRange: {
-              [`${symbol1}/${symbol0}`]: `${range.priceLower.toPrecision(6)} — ${range.priceUpper.toPrecision(6)}`,
-              [`${symbol0}/${symbol1}`]: `${(1 / range.priceUpper).toPrecision(6)} — ${(1 / range.priceLower).toPrecision(6)}`,
-            },
+          // Top 3 tick ranges by liquidity, single price direction
+          const sorted = [...tickConcentration].sort(
+            (a, b) => Number(BigInt(b.liquidity) - BigInt(a.liquidity))
+          );
+          const top3 = sorted.slice(0, 3).map((range) => ({
+            priceRange: `${range.priceLower.toPrecision(6)} — ${range.priceUpper.toPrecision(6)} ${symbol1}/${symbol0}`,
             liquidity: range.liquidity,
             active: range.active,
           }));
@@ -302,29 +301,17 @@ export function registerGetPools(server: McpServer) {
             feePercent: `${fee / 10000}%`,
             token0: symbol0,
             token1: symbol1,
-            currentTick,
-            tickSpacing: spacing,
-            sqrtPriceX96: sqrtPriceX96.toString(),
-            price: {
-              [`${symbol1}/${symbol0}`]: adjustedPrice,
-              [`${symbol0}/${symbol1}`]: 1 / adjustedPrice,
-            },
+            price: `${adjustedPrice.toPrecision(6)} ${symbol1}/${symbol0}`,
             reserves: {
               [tA.symbol]: reserveA,
               [tB.symbol]: reserveB,
             },
-            activeLiquidity: liquidity.toString(),
             activeTickRange: activeRange
-              ? {
-                  tickLower: activeRange.tickLower,
-                  tickUpper: activeRange.tickUpper,
-                  priceLower: activeRange.priceLower,
-                  priceUpper: activeRange.priceUpper,
-                }
+              ? `${activeRange.priceLower.toPrecision(6)} — ${activeRange.priceUpper.toPrecision(6)} ${symbol1}/${symbol0}`
               : null,
             tickConcentration: {
-              rangesFound: tickMap.length,
-              ranges: tickMap,
+              totalRanges: tickConcentration.length,
+              top: top3,
             },
           };
         })
@@ -346,7 +333,7 @@ export function registerGetPools(server: McpServer) {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify(response, null, 2),
+            text: JSON.stringify(response),
           },
         ],
       };

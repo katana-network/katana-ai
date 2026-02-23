@@ -13,10 +13,13 @@ const inputSchema = {
     .enum(["all", "POOL", "LEND", "BORROW", "HOLD", "DROP"])
     .default("all")
     .describe("Filter by action type: POOL (LP), LEND (supply/vault), BORROW, HOLD (token holding), DROP (airdrop)"),
-  campaigns: z
-    .boolean()
-    .default(false)
-    .describe("Include detailed campaign breakdowns (reward tokens, durations, distribution types)"),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(50)
+    .default(10)
+    .describe("Max opportunities to return (1-50, default 10). Sorted by TVL descending."),
 };
 
 interface MerklOpportunity {
@@ -72,7 +75,7 @@ export function registerGetMerklOpportunities(server: McpServer) {
         "Get all incentivized DeFi opportunities on Katana with reward APRs from Merkl. Shows reward campaigns for Sushi V3 pools and Morpho markets/vaults. Returns TVL, total APR (native + reward), daily rewards in USD, and reward token details. Use alongside list_morpho_markets or get_pools to see full yield picture (native APY + reward APR).",
       inputSchema,
     },
-    async ({ protocol, action, campaigns }) => {
+    async ({ protocol, action, limit }) => {
       const params = new URLSearchParams();
       params.set("chainId", KATANA_CHAIN_ID.toString());
 
@@ -81,9 +84,6 @@ export function registerGetMerklOpportunities(server: McpServer) {
       }
       if (action !== "all") {
         params.set("action", action);
-      }
-      if (campaigns) {
-        params.set("campaigns", "true");
       }
 
       const url = `${MERKL_API}/opportunities?${params.toString()}`;
@@ -100,28 +100,23 @@ export function registerGetMerklOpportunities(server: McpServer) {
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify(
-                { error: `Failed to fetch Merkl opportunities: ${(err as Error).message}` },
-                null,
-                2
-              ),
+              text: JSON.stringify({ error: `Failed to fetch Merkl opportunities: ${(err as Error).message}` }),
             },
           ],
           isError: true,
         };
       }
 
-      // Filter to only LIVE opportunities
+      // Filter to only LIVE opportunities, sort by TVL descending, apply limit
       const live = data.filter((o) => o.status === "LIVE");
+      live.sort((a, b) => b.tvl - a.tvl);
+      const capped = live.slice(0, limit);
 
-      const results = live.map((o) => {
+      const results = capped.map((o) => {
         const base: Record<string, unknown> = {
           name: o.name,
-          identifier: o.identifier,
-          type: o.type,
           action: o.action,
           protocol: o.protocol?.name ?? o.protocol?.id ?? "unknown",
-          status: o.status,
           tvl: `$${o.tvl.toLocaleString("en-US", { maximumFractionDigits: 0 })}`,
           totalApr: `${o.apr.toFixed(2)}%`,
           dailyRewards: `$${o.dailyRewards.toFixed(2)}`,
@@ -129,78 +124,43 @@ export function registerGetMerklOpportunities(server: McpServer) {
           tokens: o.tokens?.map((t) => t.symbol) ?? [],
         };
 
-        // APR breakdown — exclude zero-APR entries
+        // APR breakdown — collapse to summary string (only campaign APRs)
         if (o.aprRecord?.breakdowns?.length) {
-          const nonZero = o.aprRecord.breakdowns.filter((b) => b.value > 0);
+          const nonZero = o.aprRecord.breakdowns.filter(
+            (b) => b.value > 0 && b.type === "CAMPAIGN"
+          );
           if (nonZero.length) {
-            base.aprBreakdown = nonZero.map((b) => ({
-              type: b.type,
-              apr: `${b.value.toFixed(2)}%`,
-              identifier: b.identifier,
-            }));
+            base.aprBreakdown = nonZero
+              .map((b) => `${b.identifier} ${b.value.toFixed(2)}%`)
+              .join(" + ");
           }
         }
 
-        // Reward breakdown — exclude zero-value entries
+        // Reward breakdown — collapse to summary string
         if (o.rewardsRecord?.breakdowns?.length) {
           const nonZero = o.rewardsRecord.breakdowns.filter((b) => b.value > 0);
           if (nonZero.length) {
-            base.rewardTokens = nonZero.map((b) => ({
-              token: b.token?.symbol ?? "unknown",
-              address: b.token?.address,
-              dailyValue: `$${b.value.toFixed(2)}`,
-              dailyAmount: b.amount,
-              distributionType: b.distributionType,
-            }));
-          }
-        }
-
-        // Campaign details (if requested) — only live campaigns
-        if (campaigns && o.campaigns?.length) {
-          const liveCampaigns = o.campaigns.filter(
-            (c) => c.campaignStatus?.status === "LIVE"
-          );
-          if (liveCampaigns.length) {
-            base.campaigns = liveCampaigns.map((c) => ({
-              id: c.id,
-              type: c.type,
-              rewardToken: c.rewardToken?.symbol,
-              rewardTokenAddress: c.rewardToken?.address,
-              rewardTokenPrice: c.rewardToken?.price,
-              apr: `${c.apr.toFixed(2)}%`,
-              dailyRewards: `$${c.dailyRewards.toFixed(2)}`,
-              distributionType: c.distributionType,
-              start: new Date(c.startTimestamp * 1000).toISOString(),
-              end: new Date(c.endTimestamp * 1000).toISOString(),
-            }));
+            base.rewardTokens = nonZero
+              .map((b) => `${b.token?.symbol ?? "?"} $${b.value.toFixed(0)}/day`)
+              .join(" + ");
           }
         }
 
         return base;
       });
 
-      // Sort by TVL descending
-      results.sort((a, b) => {
-        const tvlA = parseFloat((a.tvl as string).replace(/[$,]/g, ""));
-        const tvlB = parseFloat((b.tvl as string).replace(/[$,]/g, ""));
-        return tvlB - tvlA;
-      });
-
       return {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify(
-              {
-                chainId: KATANA_CHAIN_ID,
-                protocol: protocol === "all" ? "all protocols" : protocol,
-                action: action === "all" ? "all actions" : action,
-                totalOpportunities: results.length,
-                opportunities: results,
-              },
-              null,
-              2
-            ),
+            text: JSON.stringify({
+              chainId: KATANA_CHAIN_ID,
+              protocol: protocol === "all" ? "all protocols" : protocol,
+              action: action === "all" ? "all actions" : action,
+              totalOpportunities: live.length,
+              showing: results.length,
+              opportunities: results,
+            }),
           },
         ],
       };
