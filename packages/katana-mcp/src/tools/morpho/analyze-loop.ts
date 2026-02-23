@@ -97,7 +97,7 @@ export function registerAnalyzeLoop(server: McpServer) {
             text: JSON.stringify({
               error: `No Sushi liquidity found for ${collSymbol}/${loanSymbol}. Cannot analyze loop strategy.`,
               market: { collateral: collSymbol, loan: loanSymbol, lltv: `${(lltvNum * 100).toFixed(2)}%` },
-            }, null, 2),
+            }),
           }],
           isError: true,
         };
@@ -243,35 +243,40 @@ export function registerAnalyzeLoop(server: McpServer) {
         ? formatUnits(remainingDebtWei, loanDecimals)
         : "0";
 
+      // Collapse loop/unwind arrays to final step only
+      const finalLoopStep = loopSteps.length > 0 ? loopSteps[loopSteps.length - 1] : null;
+      const totalUnwindSlippageStr = `${totalUnwindSlippage.toFixed(4)}%`;
+      const unwindDebtShortfallStr = remainingDebtWei > 0n
+        ? `${unwindDebtShortfall} ${loanSymbol} (need extra to close)`
+        : "none";
+
       const response = {
         network,
         market: {
           id: marketId,
-          collateral: { symbol: collSymbol, address: collateralAddr, decimals: collDecimals },
-          loan: { symbol: loanSymbol, address: loanAddr, decimals: loanDecimals },
+          collateral: collSymbol,
+          loan: loanSymbol,
           lltv: `${(lltvNum * 100).toFixed(2)}%`,
           availableBorrow: `${formatUnits(availableBorrow, loanDecimals)} ${loanSymbol}`,
-          totalSupply: `${formatUnits(totalSupply, loanDecimals)} ${loanSymbol}`,
           utilization: totalSupply > 0n
             ? `${(Number(totalBorrow * 10000n / totalSupply) / 100).toFixed(2)}%`
             : "0%",
         },
-        sushiLiquidity: {
-          loopDirection: `${loanSymbol} → ${collSymbol}`,
-          bestRoute: unitQuoteLoop.source,
-          unwindDirection: `${collSymbol} → ${loanSymbol}`,
-          bestUnwindRoute: unitQuoteUnwind.source,
-        },
         initialCollateral: `${amount} ${collSymbol}`,
-        loopAnalysis: loopSteps,
-        unwindAnalysis: unwindSteps,
+        loopsCompleted: loopSteps.length,
+        finalLoopStep,
+        unwind: {
+          steps: unwindSteps.length,
+          totalSlippage: totalUnwindSlippageStr,
+          debtShortfall: unwindDebtShortfallStr,
+        },
         summary: {
           effectiveLeverage: `${effectiveLeverage.toFixed(2)}x`,
           totalCollateral: `${formatUnits(cumulativeCollateralWei, collDecimals)} ${collSymbol}`,
           totalDebt: `${formatUnits(cumulativeDebtWei, loanDecimals)} ${loanSymbol}`,
           finalHealthFactor: finalHealthFactor === Infinity ? "∞" : finalHealthFactor.toFixed(4),
           totalSlippageCostLoop: `${totalLoopSlippage.toFixed(4)}%`,
-          totalSlippageCostUnwind: `${totalUnwindSlippage.toFixed(4)}%`,
+          totalSlippageCostUnwind: totalUnwindSlippageStr,
           totalSlippageCostRoundtrip: `${(totalLoopSlippage + totalUnwindSlippage).toFixed(4)}%`,
           unwindDebtShortfall: `${unwindDebtShortfall} ${loanSymbol}`,
           availableBorrowUtilized: `${borrowUtilized.toFixed(2)}%`,
@@ -280,7 +285,7 @@ export function registerAnalyzeLoop(server: McpServer) {
 
       return {
         content: [
-          { type: "text" as const, text: JSON.stringify(response, null, 2) },
+          { type: "text" as const, text: JSON.stringify(response) },
         ],
       };
     }

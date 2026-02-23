@@ -82,7 +82,7 @@ export function registerGetGasPrice(server: McpServer) {
 
       return {
         content: [
-          { type: "text" as const, text: JSON.stringify(response, null, 2) },
+          { type: "text" as const, text: JSON.stringify(response) },
         ],
       };
     }

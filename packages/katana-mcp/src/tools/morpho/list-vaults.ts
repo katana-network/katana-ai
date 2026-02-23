@@ -128,7 +128,7 @@ export function registerListVaults(server: McpServer) {
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify({ network, totalVaults: 0, vaults: [], note: "No vaults found." }, null, 2),
+              text: JSON.stringify({ network, totalVaults: 0, vaults: [], note: "No vaults found." }),
             },
           ],
         };

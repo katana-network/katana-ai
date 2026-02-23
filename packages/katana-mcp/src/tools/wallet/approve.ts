@@ -110,7 +110,7 @@ export function registerApprove(server: McpServer) {
 
       return {
         content: [
-          { type: "text" as const, text: JSON.stringify(tx, null, 2) },
+          { type: "text" as const, text: JSON.stringify(tx) },
         ],
       };
     }

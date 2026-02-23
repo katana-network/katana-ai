@@ -95,7 +95,7 @@ export function registerBuildSupply(server: McpServer) {
       };
 
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(tx, null, 2) }],
+        content: [{ type: "text" as const, text: JSON.stringify(tx) }],
       };
     }
   );

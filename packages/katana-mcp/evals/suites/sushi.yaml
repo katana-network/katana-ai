@@ -93,7 +93,7 @@ tests:
           const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
           if (o.poolsFound === 0) return true;
           const p = o.pools[0];
-          return !!(p.poolAddress && p.fee !== undefined && p.currentTick !== undefined);
+          return !!(p.poolAddress && p.fee !== undefined && p.price);
     options:
       timeout: 45000
 

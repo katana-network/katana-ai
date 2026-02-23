@@ -98,7 +98,7 @@ export function registerGetMarkets(server: McpServer) {
 
       return {
         content: [
-          { type: "text" as const, text: JSON.stringify({ network, markets: results }, null, 2) },
+          { type: "text" as const, text: JSON.stringify({ network, markets: results }) },
         ],
       };
     }

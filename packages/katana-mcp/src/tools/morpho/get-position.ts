@@ -101,15 +101,9 @@ export function registerGetPosition(server: McpServer) {
           lltv: `${Number(lltv) / 1e16}%`,
         },
         position: {
-          supplyShares: supplyShares.toString(),
           supplyAssets: formatUnits(supplyAssets, loanDecimals),
-          borrowShares: borrowShares.toString(),
           borrowAssets: formatUnits(borrowAssets, loanDecimals),
           collateral: formatUnits(BigInt(collateral), collateralDecimals),
-          collateralRaw: collateral.toString(),
-          hasSupply: supplyShares > 0n,
-          hasDebt,
-          hasCollateral: collateral > 0n,
         },
         note: hasDebt
           ? "Position has outstanding debt. Health factor depends on oracle price — check the Morpho UI for precise liquidation risk."
@@ -118,7 +112,7 @@ export function registerGetPosition(server: McpServer) {
 
       return {
         content: [
-          { type: "text" as const, text: JSON.stringify(response, null, 2) },
+          { type: "text" as const, text: JSON.stringify(response) },
         ],
       };
     }

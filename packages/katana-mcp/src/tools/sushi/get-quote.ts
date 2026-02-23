@@ -149,7 +149,7 @@ export function registerGetQuote(server: McpServer) {
       };
 
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(response, null, 2) }],
+        content: [{ type: "text" as const, text: JSON.stringify(response) }],
       };
     }
   );

@@ -60,8 +60,6 @@ export function registerGetMerklUserRewards(server: McpServer) {
               type: "text" as const,
               text: JSON.stringify(
                 { error: `Failed to fetch Merkl rewards: ${(err as Error).message}` },
-                null,
-                2
               ),
             },
           ],
@@ -85,8 +83,6 @@ export function registerGetMerklUserRewards(server: McpServer) {
                   rewards: [],
                   note: "No Merkl rewards found for this address on Katana.",
                 },
-                null,
-                2
               ),
             },
           ],
@@ -97,10 +93,7 @@ export function registerGetMerklUserRewards(server: McpServer) {
 
       const rewards = katanaData.rewards
         .map((r) => {
-          const totalAmount = BigInt(r.amount);
-          const claimedAmount = BigInt(r.claimed);
-          const pendingAmount = BigInt(r.pending);
-          const unclaimedAmount = totalAmount - claimedAmount;
+          const unclaimedAmount = BigInt(r.amount) - BigInt(r.claimed);
 
           const decimals = r.token.decimals;
           const price = r.token.price ?? 0;
@@ -110,30 +103,13 @@ export function registerGetMerklUserRewards(server: McpServer) {
           totalUnclaimedUSD += unclaimedUSD;
 
           return {
-            token: {
-              symbol: r.token.symbol,
-              address: r.token.address,
-              decimals: r.token.decimals,
-              price: `$${price.toFixed(4)}`,
-            },
-            total: formatUnits(totalAmount, decimals),
-            claimed: formatUnits(claimedAmount, decimals),
+            symbol: r.token.symbol,
+            address: r.token.address,
             unclaimed: unclaimedFormatted,
-            pending: formatUnits(pendingAmount, decimals),
             unclaimedUSD: `$${unclaimedUSD.toFixed(2)}`,
-            hasProofs: r.proofs.length > 0,
-            claimable: unclaimedAmount > 0n && r.proofs.length > 0,
-            // Include proof data for build_claim_rewards
-            _claimData: unclaimedAmount > 0n
-              ? {
-                  token: r.token.address,
-                  amount: r.amount,
-                  proofs: r.proofs,
-                }
-              : null,
           };
         })
-        .filter((r) => BigInt(r.total) > 0n || r.unclaimed !== "0");
+        .filter((r) => r.unclaimed !== "0");
 
       // Sort by unclaimed USD value descending
       rewards.sort((a, b) => {
@@ -150,18 +126,14 @@ export function registerGetMerklUserRewards(server: McpServer) {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify(
-              {
-                userAddress,
-                chainId: KATANA_CHAIN_ID,
-                totalRewardTokens: rewards.length,
-                totalUnclaimedUSD: `$${totalUnclaimedUSD.toFixed(2)}`,
-                disputePeriodEnd,
-                rewards,
-              },
-              null,
-              2
-            ),
+            text: JSON.stringify({
+              userAddress,
+              chainId: KATANA_CHAIN_ID,
+              totalRewardTokens: rewards.length,
+              totalUnclaimedUSD: `$${totalUnclaimedUSD.toFixed(2)}`,
+              disputePeriodEnd,
+              rewards,
+            }),
           },
         ],
       };
