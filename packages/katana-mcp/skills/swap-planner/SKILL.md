@@ -143,6 +143,13 @@ Always show the user: expected output amount, minimum output (after slippage), a
 - **V3 token ordering:** Token0 < token1 by address. The tools handle sorting internally, but tick ranges are relative to the token0/token1 order, not the user's input order.
 - **V3 tick validation:** tickLower and tickUpper must be divisible by tickSpacing. The tool will error if they're not.
 
+## Common Mistakes
+
+- **Using a fee tier without quoting first.** Always call `get_swap_quote` before `build_swap` — it returns the best fee tier across all V3 tiers and V2. Hardcoding `3000` may route through a worse pool.
+- **Invalid tick ranges for V3 LP.** `tickLower` and `tickUpper` must be divisible by the fee tier's tickSpacing (1 for 0.01%, 10 for 0.05%, 60 for 0.3%, 200 for 1%). Non-divisible ticks will revert on-chain. Use `get_pools` to get the current tick and calculate valid boundaries.
+- **Approving the wrong router.** V3 swaps need approval for SwapRouter (`0x4e1d81A3E627b9294532e990109e4c21d217376C`), V3 LP needs PositionManager (`0x2659C6085D26144117D904C46B48B6d180393d27`), V2 uses V2 Router (`0x69cC349932ae18ED406eeB917d79b9b3033fB68E`). Mixing these up means the tx will revert with an allowance error.
+- **Forgetting to approve BOTH tokens for LP.** Adding liquidity (V3 or V2) requires approving both `tokenA` and `tokenB`. Missing one will revert.
+
 ## Cross-References
 
 - **wallet-manager**: `build_approve` for router approvals, `get_balances` to check sufficient funds

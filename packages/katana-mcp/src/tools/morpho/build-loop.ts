@@ -48,21 +48,21 @@ const inputSchema = {
       "Initial collateral amount in human-readable units (e.g. '10' for 10 WETH)"
     ),
   targetLeverage: z
-    .number()
+    .coerce.number()
     .min(1.1)
     .max(20)
     .describe(
       "Target leverage multiplier (e.g. 3.0 for 3x). Must be safely below max leverage."
     ),
   maxSlippageBps: z
-    .number()
+    .coerce.number()
     .int()
     .min(1)
     .max(1000)
     .default(100)
     .describe("Max slippage in basis points (default 100 = 1%)"),
   swapFeeTier: z
-    .number()
+    .coerce.number()
     .int()
     .default(3000)
     .describe("Sushi V3 fee tier for the swap (default 3000 = 0.3%)"),

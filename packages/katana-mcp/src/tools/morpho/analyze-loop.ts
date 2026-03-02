@@ -17,7 +17,7 @@ const inputSchema = {
     .string()
     .describe("Initial collateral amount in human-readable units (e.g. '10' for 10 weETH)"),
   loops: z
-    .number()
+    .coerce.number()
     .int()
     .min(1)
     .max(10)
@@ -95,11 +95,17 @@ export function registerAnalyzeLoop(server: McpServer) {
           content: [{
             type: "text" as const,
             text: JSON.stringify({
-              error: `No Sushi liquidity found for ${collSymbol}/${loanSymbol}. Cannot analyze loop strategy.`,
-              market: { collateral: collSymbol, loan: loanSymbol, lltv: `${(lltvNum * 100).toFixed(2)}%` },
+              network,
+              market: {
+                id: marketId,
+                collateral: collSymbol,
+                loan: loanSymbol,
+                lltv: `${(lltvNum * 100).toFixed(2)}%`,
+              },
+              loopable: false,
+              reason: `No Sushi liquidity for ${collSymbol}/${loanSymbol} swap pair. This market cannot be looped.`,
             }),
           }],
-          isError: true,
         };
       }
 
@@ -145,8 +151,7 @@ export function registerAnalyzeLoop(server: McpServer) {
         if (!swapQuote) {
           loopSteps.push({
             loop: i + 1,
-            status: "STOPPED — no Sushi quote available for this amount",
-            borrowAmount: formatUnits(borrowAmountWei, loanDecimals),
+            status: `STOPPED — insufficient Sushi liquidity for ${formatUnits(borrowAmountWei, loanDecimals)} ${loanSymbol} swap`,
           });
           break;
         }

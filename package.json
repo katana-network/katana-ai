@@ -4,5 +4,10 @@
   "description": "Agent skills for Katana Network",
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "scripts": {
+    "build": "yarn workspace katana-mcp build",
+    "start:stdio": "yarn workspace katana-mcp start:stdio",
+    "start:http": "yarn workspace katana-mcp start:http"
+  }
 }

@@ -14,7 +14,7 @@ const inputSchema = {
     .default("all")
     .describe("Filter by action type: POOL (LP), LEND (supply/vault), BORROW, HOLD (token holding), DROP (airdrop)"),
   limit: z
-    .number()
+    .coerce.number()
     .int()
     .min(1)
     .max(50)

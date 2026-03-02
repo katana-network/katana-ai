@@ -54,21 +54,21 @@ const v3InputSchema = {
     .string()
     .describe("Amount of tokenB to provide (human-readable, e.g. '2000')"),
   fee: z
-    .number()
+    .coerce.number()
     .default(3000)
     .describe("V3 fee tier: 100, 500, 3000, or 10000. Default: 3000"),
   tickLower: z
-    .number()
+    .coerce.number()
     .describe("Lower tick boundary for the position"),
   tickUpper: z
-    .number()
+    .coerce.number()
     .describe("Upper tick boundary for the position"),
   recipient: z
     .string()
     .regex(/^0x[a-fA-F0-9]{40}$/, "Must be a valid Ethereum address")
     .describe("Address to receive the LP NFT position"),
   deadlineMinutes: z
-    .number()
+    .coerce.number()
     .default(20)
     .describe("Transaction deadline in minutes from now"),
   network: z
@@ -91,7 +91,7 @@ const v2InputSchema = {
     .string()
     .describe("Desired amount of tokenB (human-readable)"),
   slippageBps: z
-    .number()
+    .coerce.number()
     .default(50)
     .describe("Slippage tolerance in basis points (default 50 = 0.5%)"),
   recipient: z
@@ -99,7 +99,7 @@ const v2InputSchema = {
     .regex(/^0x[a-fA-F0-9]{40}$/, "Must be a valid Ethereum address")
     .describe("Address to receive LP tokens"),
   deadlineMinutes: z
-    .number()
+    .coerce.number()
     .default(20)
     .describe("Transaction deadline in minutes from now"),
   network: z

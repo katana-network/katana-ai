@@ -117,7 +117,7 @@ Requires sufficient collateral already deposited. The LLTV constrains maximum bo
 
 Simulate a looping strategy with real swap slippage from Sushi QuoterV2.
 
-- `marketId` (required): market ID
+- `marketId` (required): bytes32 market ID from `list_morpho_markets` (must be exactly 66 characters: `0x` + 64 hex chars). **Does NOT accept token symbols** — you must look up the market ID first.
 - `amount` (required): initial collateral amount (e.g. `"10"` for 10 WETH)
 - `loops` (default 5, max 10): number of loop iterations
 - `network`: `"mainnet"` | `"testnet"`
@@ -191,6 +191,12 @@ Returns: prerequisites (authorization + approval status), unsigned tx, and posit
   - Leverage loops → approve **Bundler3** (`0xA8C5e23C9C0DF2b6fF716486c6bBEBB6661548C8`)
 - **Authorization is separate from approval.** `build_morpho_authorize` grants GeneralAdapter1 permission to act in Morpho on the user's behalf. `build_approve` grants ERC20 token spending. Both are needed for loops.
 - **First market discovery call may be slow** — it scans events from genesis. Subsequent calls benefit from RPC caching.
+
+## Common Mistakes
+
+- **Passing token symbols instead of market IDs.** `analyze_loop_strategy`, `build_morpho_loop`, `get_morpho_position`, and all market-specific tools require a `marketId` (bytes32 hex). To find the right market ID, first call `list_morpho_markets` and match by loan/collateral token pair and LLTV.
+- **Truncated or malformed market IDs.** Market IDs must be exactly 66 characters (`0x` + 64 hex digits). A shorter string will fail with a viem bytes size mismatch error. Always copy the full ID from `list_morpho_markets` output.
+- **Calling market-specific tools in parallel before having the market ID.** Use `list_morpho_markets` first, then pass the returned ID to `analyze_loop_strategy` or `build_morpho_loop`. Do not guess or construct market IDs.
 
 ## Cross-References
 

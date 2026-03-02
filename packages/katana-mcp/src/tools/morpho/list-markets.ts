@@ -5,6 +5,7 @@ import { getClient } from "../../clients.js";
 import { MORPHO_CONTRACTS, type NetworkName } from "../../config/contracts.js";
 import { morphoAbi } from "../../abis/morpho.js";
 import { erc20Abi } from "../../abis/erc20.js";
+import { getTokenUsdPrice } from "../analytics/price-utils.js";
 
 // ─── Static cache ────────────────────────────────────────────────────────────
 // Market params and token metadata are immutable once created.
@@ -67,6 +68,12 @@ const inputSchema = {
     .enum(["mainnet", "testnet"])
     .default("mainnet")
     .describe("Katana mainnet or Bokuto testnet"),
+  minSupplyUsd: z
+    .coerce.number()
+    .min(0)
+    .max(1000000)
+    .default(100)
+    .describe("Minimum total supply in USD to include a market (default 100). Set to 0 to show all."),
 };
 
 export function registerListMarkets(server: McpServer) {
@@ -77,7 +84,7 @@ export function registerListMarkets(server: McpServer) {
         "Discover ALL Morpho Blue lending markets on Katana. Scans on-chain CreateMarket events to find every market ever created. Returns market ID, loan/collateral token symbols, LLTV, and current state (total supply, total borrow, utilization). No market IDs required — use this to explore available markets.",
       inputSchema,
     },
-    async ({ network }) => {
+    async ({ network, minSupplyUsd }) => {
       const net = network as NetworkName;
       const client = getClient(net);
       const morpho = MORPHO_CONTRACTS.mainnet.morpho;
@@ -151,29 +158,62 @@ export function registerListMarkets(server: McpServer) {
         })
       );
 
-      const results = liveResults
+      const allMarkets = liveResults
         .map((r, i) =>
           r.status === "fulfilled"
             ? r.value
             : { id: cachedMarkets[i].id, error: (r.reason as Error).message }
         )
-        // Filter out dead markets (no supply and no borrow)
+        // Filter out completely dead markets (no supply and no borrow)
         .filter((m) => {
           if ("error" in m) return true;
           return m.totalSupply !== "0" || m.totalBorrow !== "0";
-        })
-        // Strip oracle/irm and collapse token objects to symbols
-        .map(({ oracle, irm, loanToken, collateralToken, ...rest }: any) => ({
-          ...rest,
-          loanToken: loanToken?.symbol ?? loanToken,
-          collateralToken: collateralToken?.symbol ?? collateralToken,
-        }));
+        });
+
+      // Apply USD-based dust filter using on-chain prices
+      let results = allMarkets;
+      if (minSupplyUsd > 0) {
+        // Get unique loan token addresses and fetch their USD prices
+        const uniqueLoanTokens = new Map<string, { address: Address; decimals: number }>();
+        for (const m of allMarkets) {
+          if ("error" in m) continue;
+          const addr = m.loanToken.address.toLowerCase();
+          if (!uniqueLoanTokens.has(addr)) {
+            uniqueLoanTokens.set(addr, { address: m.loanToken.address as Address, decimals: m.loanToken.decimals });
+          }
+        }
+
+        const priceMap = new Map<string, number>();
+        await Promise.allSettled(
+          Array.from(uniqueLoanTokens.entries()).map(async ([addr, token]) => {
+            const price = await getTokenUsdPrice(client, token.address, token.decimals);
+            if (price !== null) priceMap.set(addr, price);
+          })
+        );
+
+        results = allMarkets.filter((m) => {
+          if ("error" in m) return true;
+          const price = priceMap.get(m.loanToken.address.toLowerCase());
+          if (price === undefined) return true; // include if we can't price it
+          const supplyUsd = parseFloat(m.totalSupply) * price;
+          return supplyUsd >= minSupplyUsd;
+        });
+      }
+
+      const filteredOut = allMarkets.length - results.length;
+
+      // Strip oracle/irm and collapse token objects to symbols
+      const markets = results.map(({ oracle, irm, loanToken, collateralToken, ...rest }: any) => ({
+        ...rest,
+        loanToken: loanToken?.symbol ?? loanToken,
+        collateralToken: collateralToken?.symbol ?? collateralToken,
+      }));
 
       return {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify({ network, totalMarkets: results.length, markets: results }),
+            text: JSON.stringify({ network, totalMarkets: markets.length, filteredOut, markets }),
           },
         ],
       };

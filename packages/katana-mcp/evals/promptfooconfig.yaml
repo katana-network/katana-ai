@@ -3,7 +3,7 @@
 # Run suite: yarn eval:wallet (or sushi, morpho, analytics, merkl)
 # View:      yarn eval:view
 
-description: "Katana MCP Server — 26 tools, live RPC"
+description: "Katana MCP Server — 43 tools, live RPC"
 
 providers:
   - id: mcp
@@ -27,5 +27,6 @@ tests:
   - file://suites/merkl.yaml
   - file://suites/sushi.yaml
   - file://suites/morpho.yaml
+  - file://suites/perps.yaml
 
 sharing: false

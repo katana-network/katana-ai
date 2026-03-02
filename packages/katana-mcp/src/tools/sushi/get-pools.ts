@@ -2,7 +2,7 @@ import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { formatUnits, type Address, zeroAddress } from "viem";
 import { getClient } from "../../clients.js";
-import { SUSHI_CONTRACTS, type NetworkName } from "../../config/contracts.js";
+import { SUSHI_CONTRACTS, getTokens, type NetworkName } from "../../config/contracts.js";
 import {
   sushiV3FactoryAbi,
   sushiV3PoolAbi,
@@ -124,23 +124,137 @@ function buildLiquidityRanges(
   return ranges;
 }
 
+// ─── Discovery: scan all known token pairs ──────────────────────────────────
+
+async function discoverAllPools(
+  client: ReturnType<typeof getClient>,
+  sushi: typeof SUSHI_CONTRACTS.mainnet,
+  net: NetworkName,
+  network: string
+) {
+  const tokens = Object.values(getTokens(net));
+  const pairs: { a: (typeof tokens)[0]; b: (typeof tokens)[0] }[] = [];
+
+  for (let i = 0; i < tokens.length; i++) {
+    for (let j = i + 1; j < tokens.length; j++) {
+      pairs.push({ a: tokens[i], b: tokens[j] });
+    }
+  }
+
+  // Check all pairs x fee tiers in parallel
+  const checks = pairs.flatMap((pair) =>
+    V3_FEE_TIERS.map(async (fee) => {
+      try {
+        const poolAddress = await client.readContract({
+          address: sushi.v3Factory,
+          abi: sushiV3FactoryAbi,
+          functionName: "getPool",
+          args: [pair.a.address, pair.b.address, fee],
+        });
+
+        if (poolAddress === zeroAddress) return null;
+
+        // Get basic pool info: slot0 + reserves
+        const [slot0, balance0, balance1] = await Promise.all([
+          client.readContract({
+            address: poolAddress,
+            abi: sushiV3PoolAbi,
+            functionName: "slot0",
+          }),
+          client.readContract({
+            address: pair.a.address,
+            abi: erc20Abi,
+            functionName: "balanceOf",
+            args: [poolAddress],
+          }),
+          client.readContract({
+            address: pair.b.address,
+            abi: erc20Abi,
+            functionName: "balanceOf",
+            args: [poolAddress],
+          }),
+        ]);
+
+        const token0 = await client.readContract({
+          address: poolAddress,
+          abi: sushiV3PoolAbi,
+          functionName: "token0",
+        });
+
+        const isAToken0 =
+          token0.toLowerCase() === pair.a.address.toLowerCase();
+        const decimals0 = isAToken0 ? pair.a.decimals : pair.b.decimals;
+        const decimals1 = isAToken0 ? pair.b.decimals : pair.a.decimals;
+        const symbol0 = isAToken0 ? pair.a.symbol : pair.b.symbol;
+        const symbol1 = isAToken0 ? pair.b.symbol : pair.a.symbol;
+
+        const sqrtPriceX96 = slot0[0];
+        const price = Number(sqrtPriceX96) / 2 ** 96;
+        const adjustedPrice =
+          price * price * 10 ** (decimals0 - decimals1);
+
+        const reserveA = formatUnits(balance0 as bigint, pair.a.decimals);
+        const reserveB = formatUnits(balance1 as bigint, pair.b.decimals);
+
+        return {
+          poolAddress,
+          pair: `${pair.a.symbol}/${pair.b.symbol}`,
+          fee,
+          feePercent: `${fee / 10000}%`,
+          token0: symbol0,
+          token1: symbol1,
+          price: `${adjustedPrice.toPrecision(6)} ${symbol1}/${symbol0}`,
+          reserves: {
+            [pair.a.symbol]: reserveA,
+            [pair.b.symbol]: reserveB,
+          },
+        };
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  const results = await Promise.allSettled(checks);
+  const pools = results
+    .map((r) => (r.status === "fulfilled" ? r.value : null))
+    .filter(Boolean);
+
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: JSON.stringify({
+          network,
+          mode: "discovery",
+          totalPools: pools.length,
+          pools,
+          hint: "For deep analysis with tick concentration, call again with specific tokenA and tokenB.",
+        }),
+      },
+    ],
+  };
+}
+
 // ─── Tool ────────────────────────────────────────────────────────────────────
 
 const inputSchema = {
   tokenA: z
     .string()
-    .describe("First token — symbol (e.g. 'WETH') or contract address"),
+    .optional()
+    .describe("First token — symbol (e.g. 'WETH') or contract address. Omit both tokenA and tokenB to discover all pools."),
   tokenB: z
     .string()
-    .describe("Second token — symbol (e.g. 'USDC') or contract address"),
+    .optional()
+    .describe("Second token — symbol (e.g. 'USDC') or contract address. Omit both tokenA and tokenB to discover all pools."),
   tickDepth: z
-    .number()
+    .coerce.number()
     .int()
     .min(1)
     .max(20)
     .default(5)
     .describe(
-      "Number of tick bitmap words to scan on each side of the current tick (1-20, default 5). Higher = wider view but more RPC calls."
+      "Number of tick bitmap words to scan on each side of the current tick (1-20, default 5). Higher = wider view but more RPC calls. Only used when both tokenA and tokenB are provided."
     ),
   network: z
     .enum(["mainnet", "testnet"])
@@ -153,13 +267,32 @@ export function registerGetPools(server: McpServer) {
     "get_pools",
     {
       description:
-        "Deep analysis of SushiSwap V3 pools for a token pair on Katana. For each fee tier pool found, returns: current price, token reserves (balances of both tokens in the pool), TVL, active liquidity, and tick concentration map showing where liquidity is distributed across price ranges. Use tickDepth to control how wide the tick scan is.",
+        "Discover and analyze SushiSwap V3 pools on Katana. Two modes: (1) Omit tokenA/tokenB to discover ALL pools across known token pairs with basic info (price, reserves, fee tier). (2) Provide both tokenA and tokenB for deep analysis of a specific pair including tick concentration and liquidity distribution.",
       inputSchema,
     },
     async ({ tokenA, tokenB, tickDepth, network }) => {
       const net = network as NetworkName;
       const client = getClient(net);
       const sushi = SUSHI_CONTRACTS.mainnet;
+
+      // ── Discovery mode: scan all known token pairs ──
+      if (!tokenA && !tokenB) {
+        return await discoverAllPools(client, sushi, net, network);
+      }
+
+      if (!tokenA || !tokenB) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({
+                error: "Provide both tokenA and tokenB for pair analysis, or omit both to discover all pools.",
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
 
       const tA = await resolveToken(net, tokenA);
       const tB = await resolveToken(net, tokenB);

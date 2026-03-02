@@ -80,6 +80,12 @@ Fetches fresh merkle proofs from the Merkl API and encodes a `claim()` call. Gas
 - **Stale proofs:** `build_claim_rewards` fetches proofs at build time. If the user waits too long to submit, a new merkle root may invalidate the proofs. Recommend claiming promptly.
 - **Reward token liquidity:** Some reward tokens may not have deep on-chain liquidity. Use `get_token_prices` (analytics) to check before assuming rewards can be easily sold.
 
+## Common Mistakes
+
+- **Passing token symbols to `build_claim_rewards`.** The `tokenAddresses` parameter requires `0x`-prefixed contract addresses, NOT symbols like `"KAT"` or `"MORPHO"`. Get the correct addresses from `get_merkl_user_rewards` output, which lists each reward token with its address.
+- **Trying to claim when proofs aren't available.** `get_merkl_user_rewards` may show unclaimed amounts but `claimable: false`. This means the merkle root hasn't been updated onchain yet (~8 hour cycle). Building a claim tx with stale/missing proofs will fail. Check `claimable` before calling `build_claim_rewards`.
+- **Assuming rewards appear instantly.** After entering a new position, rewards won't show for ~2 hours (next offchain computation cycle). Don't call `get_merkl_user_rewards` immediately after a deposit and tell the user there are no rewards.
+
 ## Cross-References
 
 - **lending-advisor**: supply to Morpho markets/vaults to earn LEND rewards

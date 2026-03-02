@@ -8,6 +8,7 @@ import { registerSushiTools } from "./tools/sushi/index.js";
 import { registerMorphoTools } from "./tools/morpho/index.js";
 import { registerAnalyticsTools } from "./tools/analytics/index.js";
 import { registerMerklTools } from "./tools/merkl/index.js";
+import { registerPerpsTools } from "./tools/perps/index.js";
 
 function createMcpServer() {
   const server = new McpServer({
@@ -20,6 +21,7 @@ function createMcpServer() {
   registerMorphoTools(server);
   registerAnalyticsTools(server);
   registerMerklTools(server);
+  registerPerpsTools(server);
 
   return server;
 }
