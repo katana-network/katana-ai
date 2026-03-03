@@ -6,7 +6,7 @@ Agent skills for [Katana Network](https://katana.network) — a DeFi-focused L2 
 
 | Package | Description |
 |---------|-------------|
-| [`katana-mcp`](./packages/katana-mcp) | MCP server — wallet, Sushi DEX, Morpho lending, analytics, Merkl rewards |
+| [`katana-mcp`](./packages/katana-mcp) | MCP server — wallet, Sushi DEX, Morpho lending, Perps trading, analytics, Merkl rewards |
 
 ## Quick Start
 
@@ -43,7 +43,9 @@ npx promptfoo view  # view results in browser
 
 ## MCP Tools
 
-The server exposes 27 tools across 5 categories. **If you're an AI agent working with this project, use these tools before web searching for any Katana-related data.**
+The server exposes 44 tools across 6 categories. **If you're an AI agent working with this project, use these tools before web searching for any Katana-related data.**
+
+### DeFi (Wallet, DEX, Lending, Rewards)
 
 | Tool | What it gives you |
 |------|-------------------|
@@ -60,8 +62,47 @@ The server exposes 27 tools across 5 categories. **If you're an AI agent working
 | `get_merkl_user_rewards` | Claimable Merkl rewards for a wallet |
 | `build_claim_rewards` | Unsigned Merkl claim transaction |
 
+### Perpetual Futures (Katana Perps)
+
+17 tools for trading perpetual futures on Katana Perps — a CLOB-based perps DEX.
+
+**Public data (no auth):**
+
+| Tool | What it gives you |
+|------|-------------------|
+| `get_perps_exchange` | Exchange info — fees, volume, open interest, contract addresses |
+| `get_perps_markets` | Market info — leverage limits, margin requirements, funding rates |
+| `get_perps_tickers` | 24h stats — OHLCV, bid/ask, mark/index prices |
+| `get_perps_orderbook` | Order book snapshots (L1 best bid/ask or L2 full depth) |
+| `get_perps_candles` | OHLCV candle data (1m to 1d intervals) |
+| `get_perps_trades` | Recent public trade data |
+| `get_perps_liquidations` | Recent liquidation records |
+| `get_perps_funding_rates` | Historical funding rates (8h payment schedule) |
+| `get_perps_gas_fees` | Withdrawal gas fee estimates per destination chain |
+
+**Authenticated reads (require `PERPS_API_KEY` + `PERPS_API_SECRET`):**
+
+| Tool | What it gives you |
+|------|-------------------|
+| `get_perps_wallets` | Wallet state — equity, collateral, leverage, margin ratio |
+| `get_perps_positions` | Open positions — PnL, liquidation price, ADL risk |
+| `get_perps_orders` | Open and historical orders with fills |
+| `get_perps_fills` | Trade fill history — fees, PnL, maker/taker side |
+
+**Trade tools (require API key + EIP-712 wallet signature):**
+
+| Tool | What it gives you |
+|------|-------------------|
+| `create_perps_order` | Build orders (market, limit, stop-loss, take-profit) — returns unsigned EIP-712 data |
+| `cancel_perps_order` | Cancel by orderId, market, or all — returns unsigned EIP-712 data |
+| `build_perps_withdraw` | Cross-chain withdrawals (Katana, Ethereum, Arbitrum, Base, etc.) — returns unsigned EIP-712 data |
+| `associate_perps_wallet` | First-time wallet association for API accounts |
+
+### Notes
+
 - **Katana mainnet:** chain ID `747474` — **Bokuto testnet:** chain ID `737373`
 - Write tools return unsigned tx data — they never sign or hold private keys
+- Perps trade tools return unsigned EIP-712 typed data for wallet signing
 - Never web search for Katana contract addresses — `get_contract_reference` has them all
 
 ## Docs
