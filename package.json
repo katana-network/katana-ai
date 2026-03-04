@@ -9,5 +9,9 @@
     "build": "yarn workspace katana-mcp build",
     "start:stdio": "yarn workspace katana-mcp start:stdio",
     "start:http": "yarn workspace katana-mcp start:http"
+  },
+  "devDependencies": {
+    "conventional-changelog-conventionalcommits": "^8.0.0",
+    "semantic-release": "^24.2.0"
   }
 }
