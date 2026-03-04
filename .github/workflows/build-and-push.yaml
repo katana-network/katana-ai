@@ -1,0 +1,27 @@
+name: Build and push new release image
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build and push'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  docker-build-push:
+    uses: 0xPolygon/pipelines/.github/workflows/gcp_pipeline_release_image.yaml@main
+    with:
+      image_name: katana-mcp
+      dockerfile_path: packages/katana-mcp/Dockerfile
+      image_tag: ${{ inputs.tag || github.ref_name }}
+      checkout_ref: ${{ inputs.tag || github.ref_name }}
+      platforms: linux/arm64
