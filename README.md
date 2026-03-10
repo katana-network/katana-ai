@@ -6,7 +6,7 @@ Agent skills for [Katana Network](https://katana.network) — a DeFi-focused L2 
 
 | Package | Description |
 |---------|-------------|
-| [`katana-mcp`](./packages/katana-mcp) | MCP server — wallet, Sushi DEX, Morpho lending, Perps trading, analytics, Merkl rewards |
+| [`katana-mcp`](./packages/katana-mcp) | MCP server — wallet, Sushi DEX, Morpho lending, Perps trading, analytics, Merkl rewards
 
 ## Quick Start
 
