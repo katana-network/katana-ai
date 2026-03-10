@@ -212,3 +212,40 @@ export const PRICE_FEEDS = {
   chainlinkVerifierProxy:
     "0x2a644E5AC685112A7Eff0c4d73CD0260546D366F" as Address,
 } as const;
+
+// ─── Katana Perps (Perpetual Futures DEX) ──────────────────────────────────
+
+export const PERPS_CONTRACTS = {
+  mainnet: {
+    exchange: "0x835Ba5b1B202773A94Daaa07168b26B22584637a" as Address,
+  },
+  testnet: {
+    exchange: "0xcE3765616b9e354E64530875f492dc4DfddF2118" as Address,
+  },
+} as const;
+
+export const PERPS_API = {
+  mainnet: {
+    rest: "https://api-perps.katana.network",
+    ws: "wss://websocket-perps.katana.network/v1",
+  },
+  testnet: {
+    rest: "https://api-perps-sandbox.katana.network",
+    ws: "wss://websocket-perps-sandbox.katana.network/v1",
+  },
+} as const;
+
+export const PERPS_EIP712_DOMAIN = {
+  mainnet: {
+    name: "KatanaPerps" as const,
+    version: "1.0.0" as const,
+    chainId: 747474,
+    verifyingContract: "0x835Ba5b1B202773A94Daaa07168b26B22584637a" as Address,
+  },
+  testnet: {
+    name: "KatanaPerps" as const,
+    version: "1.0.0-sandbox" as const,
+    chainId: 737373,
+    verifyingContract: "0xcE3765616b9e354E64530875f492dc4DfddF2118" as Address,
+  },
+} as const;

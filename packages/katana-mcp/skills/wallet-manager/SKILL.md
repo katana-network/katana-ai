@@ -121,6 +121,17 @@ If the user seems security-conscious, warn that `"max"` grants unlimited spendin
 - Always verify the user has sufficient balance before building transfer/approve transactions — use `get_balances` first.
 - The `build_approve` output includes the spender address. Double-check it matches the intended protocol.
 
+## Common Mistakes
+
+- **Wrong spender address in `build_approve`.** This is the most common error. The spender depends on the operation:
+  - Swaps → V3 SwapRouter or V2 Router
+  - V3 LP → PositionManager
+  - Morpho supply/borrow → Morpho Core (`0xD50F...8aBc`)
+  - Morpho leverage loops → Bundler3 (`0xA8C5...48C8`) — **not Morpho Core**
+  Passing the wrong spender means the subsequent DeFi tx will revert with an insufficient allowance error.
+- **Not checking balances before building transactions.** Always call `get_balances` first. Building a transfer or approve for more tokens than the user holds will produce a tx that reverts on submission.
+- **Confusing ETH and WETH.** `build_transfer` with `token: "ETH"` sends native ETH (value transfer). `token: "WETH"` sends the ERC20 vbETH token. Users may say "ETH" when they mean their wrapped balance — check both with `get_balances` and confirm with the user.
+
 ## Cross-References
 
 - **swap-planner**: approvals required before swaps and LP adds (V3 Router, V2 Router, PositionManager)

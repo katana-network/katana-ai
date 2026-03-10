@@ -1,0 +1,559 @@
+# Perps tools: public market data, authenticated reads, trade builders, testnet
+# Helper: parse MCP tool response to JSON object
+# _p(output) handles both raw JSON and MCP content array format
+
+description: "Perps tools (48 tests covering 17 tools)"
+
+providers:
+  - id: mcp
+    config:
+      enabled: true
+      server:
+        command: node
+        args: ["dist/server.js"]
+        name: katana
+
+prompts:
+  - "{{prompt}}"
+
+defaultTest:
+  options:
+    timeout: 30000
+
+evaluateOptions:
+  maxConcurrency: 1
+  delay: 500
+
+tests:
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  PUBLIC DATA — get_perps_exchange                                          ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "get_perps_exchange — returns exchange info"
+    vars:
+      prompt: '{"tool": "get_perps_exchange", "args": {"network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); typeof o.chainId === 'number' && typeof o.exchangeContractAddress === 'string'"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  PUBLIC DATA — get_perps_markets                                           ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "get_perps_markets — all markets"
+    vars:
+      prompt: '{"tool": "get_perps_markets", "args": {"network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o) && o.length > 0 && typeof o[0].market === 'string' && typeof o[0].initialMarginFraction === 'string'"
+
+  - description: "get_perps_markets — specific market ETH-USD"
+    vars:
+      prompt: '{"tool": "get_perps_markets", "args": {"market": "ETH-USD", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o) && o.length === 1 && o[0].market === 'ETH-USD'"
+
+  - description: "get_perps_markets — BTC-USD market exists"
+    vars:
+      prompt: '{"tool": "get_perps_markets", "args": {"market": "BTC-USD", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o) && o.length === 1 && o[0].market === 'BTC-USD'"
+
+  - description: "get_perps_markets — SOL-USD market exists"
+    vars:
+      prompt: '{"tool": "get_perps_markets", "args": {"market": "SOL-USD", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o) && o.length === 1 && o[0].market === 'SOL-USD'"
+
+  - description: "get_perps_markets — multiple markets have leverage and fee fields"
+    vars:
+      prompt: '{"tool": "get_perps_markets", "args": {"network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.length >= 3 && o.every(m => typeof m.market === 'string' && typeof m.initialMarginFraction === 'string' && typeof m.maintenanceMarginFraction === 'string')"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  PUBLIC DATA — get_perps_tickers                                           ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "get_perps_tickers — ETH-USD ticker"
+    vars:
+      prompt: '{"tool": "get_perps_tickers", "args": {"market": "ETH-USD", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o) && o.length > 0 && o[0].market === 'ETH-USD' && typeof o[0].indexPrice === 'string'"
+
+  - description: "get_perps_tickers — all tickers return multiple markets"
+    vars:
+      prompt: '{"tool": "get_perps_tickers", "args": {"network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o) && o.length >= 3 && o.every(t => typeof t.market === 'string' && typeof t.indexPrice === 'string' && typeof t.markPrice === 'string')"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  PUBLIC DATA — get_perps_orderbook                                         ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "get_perps_orderbook — L1 for ETH-USD"
+    vars:
+      prompt: '{"tool": "get_perps_orderbook", "args": {"market": "ETH-USD", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o.bids) && Array.isArray(o.asks) && typeof o.indexPrice === 'string'"
+
+  - description: "get_perps_orderbook — L2 for ETH-USD with limit"
+    vars:
+      prompt: '{"tool": "get_perps_orderbook", "args": {"market": "ETH-USD", "level": 2, "limit": 10, "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o.bids) && Array.isArray(o.asks) && o.bids.length <= 10 && o.asks.length <= 10"
+
+  - description: "get_perps_orderbook — BTC-USD L1"
+    vars:
+      prompt: '{"tool": "get_perps_orderbook", "args": {"market": "BTC-USD", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o.bids) && Array.isArray(o.asks)"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  PUBLIC DATA — get_perps_candles                                           ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "get_perps_candles — 1h candles for ETH-USD"
+    vars:
+      prompt: '{"tool": "get_perps_candles", "args": {"market": "ETH-USD", "interval": "1h", "limit": 5, "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o)"
+
+  - description: "get_perps_candles — 1m candles for ETH-USD"
+    vars:
+      prompt: '{"tool": "get_perps_candles", "args": {"market": "ETH-USD", "interval": "1m", "limit": 3, "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o)"
+
+  - description: "get_perps_candles — 1d candles for BTC-USD"
+    vars:
+      prompt: '{"tool": "get_perps_candles", "args": {"market": "BTC-USD", "interval": "1d", "limit": 5, "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o)"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  PUBLIC DATA — get_perps_trades                                            ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "get_perps_trades — recent ETH-USD trades"
+    vars:
+      prompt: '{"tool": "get_perps_trades", "args": {"market": "ETH-USD", "limit": 5, "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o)"
+
+  - description: "get_perps_trades — BTC-USD trades"
+    vars:
+      prompt: '{"tool": "get_perps_trades", "args": {"market": "BTC-USD", "limit": 3, "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o)"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  PUBLIC DATA — get_perps_liquidations                                      ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "get_perps_liquidations — recent ETH-USD liquidations"
+    vars:
+      prompt: '{"tool": "get_perps_liquidations", "args": {"market": "ETH-USD", "limit": 5, "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o)"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  PUBLIC DATA — get_perps_funding_rates                                     ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "get_perps_funding_rates — recent ETH-USD funding"
+    vars:
+      prompt: '{"tool": "get_perps_funding_rates", "args": {"market": "ETH-USD", "limit": 5, "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o) && o.length > 0"
+
+  - description: "get_perps_funding_rates — BTC-USD funding"
+    vars:
+      prompt: '{"tool": "get_perps_funding_rates", "args": {"market": "BTC-USD", "limit": 5, "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o) && o.length > 0"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  PUBLIC DATA — get_perps_gas_fees                                          ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "get_perps_gas_fees — withdrawal gas fees"
+    vars:
+      prompt: '{"tool": "get_perps_gas_fees", "args": {"network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); typeof o.withdrawal === 'object' && o.withdrawal !== null"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  AUTHENTICATED READS — error handling without API keys                     ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "get_perps_wallets — returns auth error without API keys"
+    vars:
+      prompt: '{"tool": "get_perps_wallets", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); typeof o.error === 'string' && o.error.includes('PERPS_API_KEY')"
+
+  - description: "get_perps_positions — returns auth error without API keys"
+    vars:
+      prompt: '{"tool": "get_perps_positions", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); typeof o.error === 'string' && o.error.includes('PERPS_API_KEY')"
+
+  - description: "get_perps_orders — returns auth error without API keys"
+    vars:
+      prompt: '{"tool": "get_perps_orders", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); typeof o.error === 'string' && o.error.includes('PERPS_API_KEY')"
+
+  - description: "get_perps_fills — returns auth error without API keys"
+    vars:
+      prompt: '{"tool": "get_perps_fills", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); typeof o.error === 'string' && o.error.includes('PERPS_API_KEY')"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  EIP-712 — create_perps_order (market orders)                              ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "create_perps_order — market buy EIP-712 typed data"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "market", "side": "buy", "quantity": "1.00000000", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.submitted === false && o.eip712 !== undefined && o.eip712.domain.name === 'KatanaPerps'"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.domain.chainId === 747474 && o.eip712.types !== undefined && o.eip712.value !== undefined"
+
+  - description: "create_perps_order — market buy has correct enum values (type=0, side=0)"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "market", "side": "buy", "quantity": "1.00000000", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.orderType === 0 && o.eip712.value.orderSide === 0"
+
+  - description: "create_perps_order — market sell has side=1"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "BTC-USD", "type": "market", "side": "sell", "quantity": "0.50000000", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.orderSide === 1 && o.eip712.value.orderType === 0 && o.eip712.value.marketSymbol === 'BTC-USD'"
+
+  - description: "create_perps_order — nonce is valid uint128 decimal string"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "market", "side": "buy", "quantity": "1.00000000", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); const n = o.eip712.value.nonce; typeof n === 'string' && /^\\d+$/.test(n) && BigInt(n) > 0n"
+
+  - description: "create_perps_order — 8-decimal quantity preserved in EIP-712 value"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "market", "side": "buy", "quantity": "12.34567800", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.quantity === '12.34567800'"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  EIP-712 — create_perps_order (limit orders)                               ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "create_perps_order — limit buy with price, type=1"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "limit", "side": "buy", "quantity": "1.00000000", "price": "2000.00000000", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.orderType === 1 && o.eip712.value.limitPrice === '2000.00000000'"
+
+  - description: "create_perps_order — limit order has zero triggerPrice when not set"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "limit", "side": "sell", "quantity": "0.10000000", "price": "3000.00000000", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.triggerPrice === '0.00000000' && o.eip712.value.triggerType === 0"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  EIP-712 — create_perps_order (stop-loss / take-profit)                    ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "create_perps_order — stopLossMarket with triggerPrice, type=2"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "stopLossMarket", "side": "sell", "quantity": "1.00000000", "triggerPrice": "1800.00000000", "triggerType": "last", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.orderType === 2 && o.eip712.value.triggerPrice === '1800.00000000' && o.eip712.value.triggerType === 1"
+
+  - description: "create_perps_order — stopLossLimit, type=3, with price and trigger"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "BTC-USD", "type": "stopLossLimit", "side": "sell", "quantity": "0.10000000", "price": "55000.00000000", "triggerPrice": "56000.00000000", "triggerType": "index", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.orderType === 3 && o.eip712.value.limitPrice === '55000.00000000' && o.eip712.value.triggerType === 2"
+
+  - description: "create_perps_order — takeProfitMarket, type=4"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "takeProfitMarket", "side": "sell", "quantity": "2.00000000", "triggerPrice": "3000.00000000", "triggerType": "index", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.orderType === 4 && o.eip712.value.triggerPrice === '3000.00000000'"
+
+  - description: "create_perps_order — takeProfitLimit, type=5"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "takeProfitLimit", "side": "sell", "quantity": "1.00000000", "price": "2900.00000000", "triggerPrice": "3000.00000000", "triggerType": "last", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.orderType === 5 && o.eip712.value.limitPrice === '2900.00000000' && o.eip712.value.triggerType === 1"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  EIP-712 — create_perps_order (reduce-only, TIF, STP, clientOrderId)       ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "create_perps_order — reduceOnly=true"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "market", "side": "sell", "quantity": "1.00000000", "reduceOnly": true, "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.isReduceOnly === true"
+
+  - description: "create_perps_order — timeInForce=ioc maps to uint8 2"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "market", "side": "buy", "quantity": "1.00000000", "timeInForce": "ioc", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.timeInForce === 2"
+
+  - description: "create_perps_order — timeInForce=fok maps to uint8 3"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "market", "side": "buy", "quantity": "1.00000000", "timeInForce": "fok", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.timeInForce === 3"
+
+  - description: "create_perps_order — timeInForce=gtx maps to uint8 1"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "limit", "side": "buy", "quantity": "1.00000000", "price": "2000.00000000", "timeInForce": "gtx", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.timeInForce === 1"
+
+  - description: "create_perps_order — selfTradePrevention=cn maps to uint8 2"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "market", "side": "buy", "quantity": "1.00000000", "selfTradePrevention": "cn", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.selfTradePrevention === 2"
+
+  - description: "create_perps_order — clientOrderId passed through to EIP-712 value"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "market", "side": "buy", "quantity": "1.00000000", "clientOrderId": "my-order-123", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.clientOrderId === 'my-order-123'"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  EIP-712 — cancel_perps_order (3 cancel modes)                             ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "cancel_perps_order — cancel all (by wallet)"
+    vars:
+      prompt: '{"tool": "cancel_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.submitted === false && Array.isArray(o.eip712.types.OrderCancellationByWallet)"
+
+  - description: "cancel_perps_order — cancel by specific orderIds"
+    vars:
+      prompt: '{"tool": "cancel_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "orderIds": "abc123,def456", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.submitted === false && Array.isArray(o.eip712.types.OrderCancellationByOrderId)"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o.eip712.value.orderIds) && o.eip712.value.orderIds.length === 2"
+
+  - description: "cancel_perps_order — cancel by market symbol"
+    vars:
+      prompt: '{"tool": "cancel_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.submitted === false && Array.isArray(o.eip712.types.OrderCancellationByMarketSymbol)"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.marketSymbol === 'ETH-USD'"
+
+  - description: "cancel_perps_order — delegatedKey is zeroAddress"
+    vars:
+      prompt: '{"tool": "cancel_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.delegatedKey === '0x0000000000000000000000000000000000000000'"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  EIP-712 — build_perps_withdraw (Katana + cross-chain)                     ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "build_perps_withdraw — Katana withdrawal typed data"
+    vars:
+      prompt: '{"tool": "build_perps_withdraw", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "quantity": "100.00000000", "maximumGasFee": "0.10000000", "destinationChain": "katana", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.submitted === false && Array.isArray(o.eip712.types.Withdrawal)"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.quantity === '100.00000000' && o.eip712.value.bridgeAdapter === '0x0000000000000000000000000000000000000000'"
+
+  - description: "build_perps_withdraw — cross-chain to Arbitrum uses bridge adapter"
+    vars:
+      prompt: '{"tool": "build_perps_withdraw", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "quantity": "500.00000000", "maximumGasFee": "1.00000000", "destinationChain": "arbitrum", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.bridgeAdapter !== '0x0000000000000000000000000000000000000000'"
+
+  - description: "build_perps_withdraw — cross-chain to Base"
+    vars:
+      prompt: '{"tool": "build_perps_withdraw", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "quantity": "250.00000000", "maximumGasFee": "0.50000000", "destinationChain": "base", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.bridgeAdapter !== '0x0000000000000000000000000000000000000000' && o.eip712.value.quantity === '250.00000000'"
+
+  - description: "build_perps_withdraw — cross-chain to Ethereum"
+    vars:
+      prompt: '{"tool": "build_perps_withdraw", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "quantity": "1000.00000000", "maximumGasFee": "5.00000000", "destinationChain": "ethereum", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.bridgeAdapter !== '0x0000000000000000000000000000000000000000'"
+
+  - description: "build_perps_withdraw — cross-chain to Optimism"
+    vars:
+      prompt: '{"tool": "build_perps_withdraw", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "quantity": "100.00000000", "maximumGasFee": "0.50000000", "destinationChain": "optimism", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.bridgeAdapter !== '0x0000000000000000000000000000000000000000'"
+
+  - description: "build_perps_withdraw — maximumGasFee preserved in value"
+    vars:
+      prompt: '{"tool": "build_perps_withdraw", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "quantity": "100.00000000", "maximumGasFee": "2.50000000", "destinationChain": "katana", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.maximumGasFee === '2.50000000'"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  EIP-712 — associate_perps_wallet                                          ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "associate_perps_wallet — returns EIP-712 typed data"
+    vars:
+      prompt: '{"tool": "associate_perps_wallet", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.submitted === false && Array.isArray(o.eip712.types.WalletAssociation)"
+
+  - description: "associate_perps_wallet — wallet address in EIP-712 value"
+    vars:
+      prompt: '{"tool": "associate_perps_wallet", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "network": "mainnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.value.wallet === '0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d'"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  TESTNET — public data + EIP-712 domain verification                       ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "get_perps_exchange — testnet returns exchange info"
+    vars:
+      prompt: '{"tool": "get_perps_exchange", "args": {"network": "testnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); typeof o.chainId === 'number' && typeof o.exchangeContractAddress === 'string'"
+
+  - description: "get_perps_markets — testnet returns markets"
+    vars:
+      prompt: '{"tool": "get_perps_markets", "args": {"network": "testnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o) && o.length > 0"
+
+  - description: "get_perps_tickers — testnet returns tickers"
+    vars:
+      prompt: '{"tool": "get_perps_tickers", "args": {"network": "testnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o) && o.length > 0"
+
+  - description: "create_perps_order — testnet EIP-712 domain uses chainId 737373 and sandbox version"
+    vars:
+      prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "market", "side": "buy", "quantity": "1.00000000", "network": "testnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.domain.chainId === 737373 && o.eip712.domain.version === '1.0.0-sandbox' && o.eip712.domain.name === 'KatanaPerps'"
+
+  - description: "cancel_perps_order — testnet uses correct domain"
+    vars:
+      prompt: '{"tool": "cancel_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "network": "testnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.domain.chainId === 737373"
+
+  - description: "build_perps_withdraw — testnet uses correct domain"
+    vars:
+      prompt: '{"tool": "build_perps_withdraw", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "quantity": "50.00000000", "maximumGasFee": "0.10000000", "destinationChain": "katana", "network": "testnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.domain.chainId === 737373"
+
+  - description: "associate_perps_wallet — testnet uses correct domain"
+    vars:
+      prompt: '{"tool": "associate_perps_wallet", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "network": "testnet"}}'
+    assert:
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.domain.chainId === 737373 && o.eip712.domain.version === '1.0.0-sandbox'"

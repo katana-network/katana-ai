@@ -75,6 +75,11 @@ Statuses: `success`, `reverted`, or `pending`. On Katana with 1-second blocks, p
 | "What contracts are on Katana?" | `get_contract_reference` — all addresses, ABIs, and token list |
 | Building a raw integration | `get_contract_reference` — named function sigs for direct contract calls |
 
+## Common Mistakes
+
+- **Truncated transaction hash in `tx_lookup`.** Transaction hashes must be exactly 66 characters (`0x` + 64 hex digits). A shorter or malformed hash will fail with a bytes size error. Always copy the full hash.
+- **Assuming "No liquidity found" means a token is worthless.** `get_token_prices` derives prices from Sushi V3 pools. If a token has no pool, it returns no price — this doesn't mean the token has zero value. Note this to the user and suggest checking external sources.
+
 ## Cross-References
 
 - All other skills can use `get_token_prices` to add USD context to balances, positions, and rewards.

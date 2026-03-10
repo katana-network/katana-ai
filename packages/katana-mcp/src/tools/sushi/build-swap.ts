@@ -22,11 +22,11 @@ const inputSchema = {
     .regex(/^0x[a-fA-F0-9]{40}$/, "Must be a valid Ethereum address")
     .describe("Address to receive the output tokens"),
   slippageBps: z
-    .number()
+    .coerce.number()
     .default(50)
     .describe("Slippage tolerance in basis points (default 50 = 0.5%)"),
   fee: z
-    .number()
+    .coerce.number()
     .default(3000)
     .describe("V3 pool fee tier: 100 (0.01%), 500 (0.05%), 3000 (0.3%), 10000 (1%). Default: 3000"),
   version: z
@@ -34,7 +34,7 @@ const inputSchema = {
     .default("v3")
     .describe("Use SushiSwap V3 or V2 router. Default: v3"),
   deadlineMinutes: z
-    .number()
+    .coerce.number()
     .default(20)
     .describe("Transaction deadline in minutes from now (default 20)"),
   network: z
