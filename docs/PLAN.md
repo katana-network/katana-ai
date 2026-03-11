@@ -29,7 +29,7 @@ An MCP server for Katana Network users that provides agent skills for DeFi opera
 
 ## MCP Tools (44 total)
 
-### DeFi (26 tools)
+### DeFi (27 tools)
 
 | # | Tool | Type | Category |
 |---|------|------|----------|
