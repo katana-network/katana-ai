@@ -1,5 +1,5 @@
 ---
-name: merkl-rewards
+name: merkl
 description: Activate when the user asks about DeFi rewards, incentives, yield farming campaigns, claiming rewards, or Merkl on Katana Network.
 allowed-tools: get_merkl_opportunities, get_merkl_user_rewards, build_claim_rewards
 model: opus
@@ -58,8 +58,8 @@ Fetches fresh merkle proofs from the Merkl API and encodes a `claim()` call. Gas
 
 ### Discover Best Yield
 1. `get_merkl_opportunities` — see all incentivized positions with reward APRs
-2. Compare with native yield from `list_morpho_markets` (lending-advisor) or `get_pools` (swap-planner) — **total yield = native APY + Merkl reward APR**
-3. Use swap-planner or lending-advisor tools to enter the position
+2. Compare with native yield from `list_morpho_markets` (lending) or `get_pools` (dex) — **total yield = native APY + Merkl reward APR**
+3. Use dex or lending tools to enter the position
 
 ### Check and Claim Rewards
 1. `get_merkl_user_rewards` — check unclaimed rewards and USD values
@@ -67,9 +67,9 @@ Fetches fresh merkle proofs from the Merkl API and encodes a `claim()` call. Gas
 
 ### Optimize Yield Strategy (Multi-Skill)
 1. `get_merkl_opportunities` with protocol filter — see what's incentivized
-2. `list_morpho_markets` (lending-advisor) to see native lending rates alongside reward APRs
-3. Use swap-planner to swap into the right tokens or add LP
-4. Use lending-advisor to supply to Morpho markets
+2. `list_morpho_markets` (lending) to see native lending rates alongside reward APRs
+3. Use dex to swap into the right tokens or add LP
+4. Use lending to supply to Morpho markets
 5. Periodically check `get_merkl_user_rewards` to track accumulated rewards
 
 ## Warnings
@@ -88,7 +88,7 @@ Fetches fresh merkle proofs from the Merkl API and encodes a `claim()` call. Gas
 
 ## Cross-References
 
-- **lending-advisor**: supply to Morpho markets/vaults to earn LEND rewards
-- **swap-planner**: provide Sushi LP to earn POOL rewards
+- **lending**: supply to Morpho markets/vaults to earn LEND rewards
+- **dex**: provide Sushi LP to earn POOL rewards
 - **analytics**: `get_token_prices` to value reward tokens in USD
 - **wallet-manager**: `get_balances` to check reward token balances after claiming

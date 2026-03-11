@@ -109,7 +109,7 @@ If the user seems security-conscious, warn that `"max"` grants unlimited spendin
 ### Prepare for DeFi (Approval)
 1. Determine which contract needs approval (swap router, Morpho, etc.)
 2. `build_approve` with the correct spender address from the table above
-3. Hand off to the relevant skill (swap-planner, lending-advisor)
+3. Hand off to the relevant skill (dex, lending)
 
 ### Wrap ETH for DeFi
 1. `build_wrap_eth` — explain that WETH on Katana earns bridge yield
@@ -134,6 +134,6 @@ If the user seems security-conscious, warn that `"max"` grants unlimited spendin
 
 ## Cross-References
 
-- **swap-planner**: approvals required before swaps and LP adds (V3 Router, V2 Router, PositionManager)
-- **lending-advisor**: approvals required before Morpho supply (Morpho Core) and leverage loops (Bundler3)
+- **dex**: approvals required before swaps and LP adds (V3 Router, V2 Router, PositionManager)
+- **lending**: approvals required before Morpho supply (Morpho Core) and leverage loops (Bundler3)
 - **analytics**: `get_token_prices` to show USD values alongside balances

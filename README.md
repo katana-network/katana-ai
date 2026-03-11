@@ -98,6 +98,15 @@ The server exposes 44 tools across 6 categories. **If you're an AI agent working
 | `build_perps_withdraw` | Cross-chain withdrawals (Katana, Ethereum, Arbitrum, Base, etc.) — returns unsigned EIP-712 data |
 | `associate_perps_wallet` | First-time wallet association for API accounts |
 
+### Environment Variables
+
+| Variable | Required | Used by |
+|----------|----------|---------|
+| `PERPS_API_KEY` | For perps authenticated/trade tools | Katana Perps API |
+| `PERPS_API_SECRET` | For perps authenticated/trade tools | Katana Perps API |
+
+DeFi tools (wallet, Sushi, Morpho, Merkl, analytics) require no API keys — they read directly from on-chain RPC.
+
 ### Notes
 
 - **Katana mainnet:** chain ID `747474` — **Bokuto testnet:** chain ID `737373`
@@ -105,6 +114,27 @@ The server exposes 44 tools across 6 categories. **If you're an AI agent working
 - Perps trade tools return unsigned EIP-712 typed data for wallet signing
 - Never web search for Katana contract addresses — `get_contract_reference` has them all
 
+## Agent Skills
+
+Skills are markdown guides (`SKILL.md`) that teach AI agents **when and how** to use the MCP tools. While MCP tools define what the server can do, skills define how an agent should reason about using them — workflows, safety rules, and common mistakes.
+
+Each skill has a frontmatter header with a `description` field that tells the agent when to activate it. For example, the `dex` skill activates when a user asks about swaps, quotes, or liquidity.
+
+| Skill | Activates when |
+|-------|---------------|
+| `wallet-manager` | Balances, transfers, approvals, wrap/unwrap ETH |
+| `dex` | Token swaps, quotes, pool analysis, LP provision on SushiSwap |
+| `lending` | Morpho markets, vaults, positions, leverage loops |
+| `merkl` | Reward discovery, yield farming, claiming Merkl rewards |
+| `analytics` | Token prices, gas costs, tx lookup, contract reference |
+| `perps` | Perpetual futures — market data, orders, positions, withdrawals |
+
+Skills are registered in [`.claude-plugin/plugin.json`](./packages/katana-mcp/.claude-plugin/plugin.json) and live in `packages/katana-mcp/skills/`.
+
 ## Docs
 
 Planning and reference docs are in [`docs/`](./docs/).
+
+## Disclaimer
+
+Katana Agent Skills is an informational tool only. It and its outputs are provided on an "as is" and "as available" basis, without representation or warranty of any kind. It does not constitute investment, financial, trading, or any other form of advice, and does not represent a recommendation to buy, sell, or hold any digital assets. The accuracy, timeliness, or completeness of any data or analysis presented is not guaranteed. Your use of this tool and any information it provides is at your own risk — you are solely responsible for evaluating the information and for all decisions made based on it. AI-generated information or summaries should not be solely relied on for decision making and may include errors, biases, or outdated information. Digital asset prices are subject to high market risk and price volatility; the value of your investment may go down or up, and you may not get back the amount invested. You should carefully consider your investment experience, financial situation, investment objectives, and risk tolerance, and consult an independent financial adviser prior to making any investment. This tool is not responsible for any losses or damages incurred as a result of your use of or reliance on it.

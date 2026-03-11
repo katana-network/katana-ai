@@ -1,13 +1,14 @@
 {
   "name": "katana-mcp",
   "version": "0.1.0",
-  "description": "Katana Network DeFi agent skills — wallet management, Sushi DEX trading, Morpho lending, on-chain analytics, and Merkl rewards",
+  "description": "Katana Network DeFi agent skills — wallet management, Sushi DEX trading, Morpho lending, perpetual futures, on-chain analytics, and Merkl rewards",
   "skills": [
     "./skills/wallet-manager",
-    "./skills/swap-planner",
-    "./skills/lending-advisor",
+    "./skills/dex",
+    "./skills/lending",
     "./skills/analytics",
-    "./skills/merkl-rewards"
+    "./skills/merkl",
+    "./skills/perps"
   ],
   "mcpServers": ["./.mcp.json"],
   "keywords": [

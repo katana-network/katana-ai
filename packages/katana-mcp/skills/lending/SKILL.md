@@ -1,5 +1,5 @@
 ---
-name: lending-advisor
+name: lending
 description: Activate when the user asks about lending, borrowing, Morpho markets, vaults, positions, leverage, looping strategies, or yield farming on Katana Network.
 allowed-tools: list_morpho_markets, list_morpho_vaults, get_morpho_markets, get_morpho_position, analyze_loop_strategy, build_morpho_supply, build_morpho_withdraw, build_morpho_borrow, build_morpho_authorize, build_morpho_loop, build_approve, get_token_prices
 model: opus
@@ -201,6 +201,6 @@ Returns: prerequisites (authorization + approval status), unsigned tx, and posit
 ## Cross-References
 
 - **wallet-manager**: `build_approve` for Morpho Core or Bundler3 approvals, `get_balances` to check token balances
-- **swap-planner**: Sushi V3 provides the swap leg inside leverage loops. Use `get_swap_quote` to preview swap rates independently.
-- **merkl-rewards**: `get_merkl_opportunities` with `protocol: "morpho"` to check reward incentives on Morpho markets/vaults
+- **dex**: Sushi V3 provides the swap leg inside leverage loops. Use `get_swap_quote` to preview swap rates independently.
+- **merkl**: `get_merkl_opportunities` with `protocol: "morpho"` to check reward incentives on Morpho markets/vaults
 - **analytics**: `get_token_prices` for USD position values, `get_gas_price` for cost estimates on complex transactions
