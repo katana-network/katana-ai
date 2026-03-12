@@ -1,8 +1,8 @@
-# Morpho lending tools (10 total)
+# Morpho lending tools (11 total)
 # Note: Discovery tools scan events and need extra timeout.
 # Market ID: USDC/WETH market with standard ERC20 tokens.
 
-description: "Morpho lending tools (10)"
+description: "Morpho lending tools (11)"
 
 providers:
   - id: mcp
@@ -175,6 +175,25 @@ tests:
           const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
           if (o.error) return true;
           return !!(o.position && o.position.healthFactor);
+    options:
+      timeout: 60000
+
+  # ── build_morpho_vault_deposit ────────────────────────────────────────────
+  - description: "build_morpho_vault_deposit — targets vault with preview"
+    vars:
+      prompt: '{"tool": "build_morpho_vault_deposit", "args": {"vault": "0x61D4F9D3797BA4dA152238c53a6f93Fb665C3c1d", "amount": "100", "receiver": "0x0000000000000000000000000000000000000001", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.to.toLowerCase() === '0x61d4f9d3797ba4da152238c53a6f93fb665c3c1d'
+            && o.chainId === 747474
+            && o.data && o.data.startsWith('0x');
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return !!(o.vault && o.asset && o.preview && o.preview.sharesReceived);
     options:
       timeout: 60000
 

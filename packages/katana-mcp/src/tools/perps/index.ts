@@ -16,6 +16,7 @@ import { registerCreatePerpsOrder } from "./create-order.js";
 import { registerCancelPerpsOrder } from "./cancel-order.js";
 import { registerBuildPerpsWithdraw } from "./withdraw.js";
 import { registerAssociatePerpsWallet } from "./associate-wallet.js";
+import { registerBuildPerpsDeposit } from "./deposit.js";
 
 export function registerPerpsTools(server: McpServer) {
   // Public data (no auth required)
@@ -39,5 +40,6 @@ export function registerPerpsTools(server: McpServer) {
   registerCreatePerpsOrder(server);
   registerCancelPerpsOrder(server);
   registerBuildPerpsWithdraw(server);
+  registerBuildPerpsDeposit(server);
   registerAssociatePerpsWallet(server);
 }

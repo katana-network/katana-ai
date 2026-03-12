@@ -22,7 +22,6 @@ const inputSchema = {
 };
 
 export function registerGetBalances(server: McpServer) {
-  // @ts-expect-error TS2589: Zod + MCP SDK deep type inference
   server.registerTool(
     "get_balances",
     {

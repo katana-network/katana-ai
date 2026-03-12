@@ -44,7 +44,6 @@ const inputSchema = {
 };
 
 export function registerBuildSwap(server: McpServer) {
-  // @ts-expect-error TS2589: Zod + MCP SDK deep type inference
   server.registerTool(
     "build_swap",
     {

@@ -9,6 +9,7 @@ import { registerMorphoTools } from "./tools/morpho/index.js";
 import { registerAnalyticsTools } from "./tools/analytics/index.js";
 import { registerMerklTools } from "./tools/merkl/index.js";
 import { registerPerpsTools } from "./tools/perps/index.js";
+import { registerKatTools } from "./tools/kat/index.js";
 
 function createMcpServer() {
   const server = new McpServer({
@@ -22,6 +23,7 @@ function createMcpServer() {
   registerAnalyticsTools(server);
   registerMerklTools(server);
   registerPerpsTools(server);
+  registerKatTools(server);
 
   return server;
 }
