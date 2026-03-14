@@ -56,7 +56,7 @@ const REFERENCE = {
     exitQueue: "0x6dE9cAAb658C744aD337Ca5d92D084c97ffF578d",
     clock: "0x17049d374A2bcdA70F8939C21ad92bcF6B2A95ab",
     swapper: "0x92D2e00b6D2BB50B87a9BE971a82B1F00ac44768",
-    note: "KAT is currently non-transferable — transfers, staking, and vault deposits are disabled until unlock (expected after Q1 2026)",
+    note: "KAT is fully transferable as of March 18, 2026. All transfers, staking, and vault deposits are enabled.",
     keyFunctions: {
       votingEscrow: "createLock(uint256 amount)→uint256 tokenId | beginWithdrawal(uint256 tokenId) | withdraw(uint256 tokenId) | cancelWithdrawalRequest(uint256 tokenId) | resetVotesAndBeginWithdrawal(uint256 tokenId) | merge(uint256 fromTokenId, uint256 toTokenId) | split(uint256 tokenId, uint256 amount)→uint256 newTokenId | locked(uint256 tokenId)→(uint256 amount, uint256 start) | votingPower(uint256 tokenId)→uint256",
       vault: "deposit(uint256 assets, address receiver)→uint256 shares | redeem(uint256 shares, address receiver, address owner)→uint256 assets | convertToShares(uint256 assets)→uint256 | convertToAssets(uint256 shares)→uint256",

@@ -10,7 +10,7 @@ export function registerBuildDepositVault(server: McpServer) {
     "build_kat_deposit_vault",
     {
       description:
-        "Build an unsigned transaction to deposit KAT into the avKAT vault (ERC-4626). Returns liquid, transferable avKAT shares that auto-compound rewards. User must first approve the avKAT vault to spend their KAT. Note: KAT is currently non-transferable — this will revert until KAT unlock (expected after Q1 2026).",
+        "Build an unsigned transaction to deposit KAT into the avKAT vault (ERC-4626). Returns liquid, transferable avKAT shares that auto-compound rewards. User must first approve the avKAT vault to spend their KAT.",
       inputSchema: {
         amount: z
           .string()
@@ -38,7 +38,7 @@ export function registerBuildDepositVault(server: McpServer) {
         value: "0",
         chainId: chain.id,
         description: `Deposit ${amount} KAT → avKAT vault`,
-        note: `User must approve avKAT vault (${vaultAddr}) to spend KAT first. KAT is currently non-transferable — this will revert until unlock.`,
+        note: `User must approve avKAT vault (${vaultAddr}) to spend KAT first.`,
       };
 
       return {

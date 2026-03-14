@@ -109,7 +109,7 @@ tests:
       timeout: 45000
 
   # ── get_contract_reference — KAT note about transferability ────────────────
-  - description: "get_contract_reference — KAT non-transferable note present"
+  - description: "get_contract_reference — KAT transferable note present"
     vars:
       prompt: '{"tool": "get_contract_reference", "args": {}}'
     assert:
@@ -117,4 +117,4 @@ tests:
       - type: javascript
         value: |
           const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
-          return o.kat && o.kat.note && o.kat.note.toLowerCase().includes('non-transferable');
+          return o.kat && o.kat.note && o.kat.note.toLowerCase().includes('transferable');

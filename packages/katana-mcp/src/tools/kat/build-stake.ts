@@ -10,7 +10,7 @@ export function registerBuildStake(server: McpServer) {
     "build_kat_stake",
     {
       description:
-        "Build an unsigned transaction to stake KAT → vKAT by creating a lock in the VotingEscrow contract. Returns a soulbound NFT (vKAT) with voting power. User must first approve VotingEscrow to spend their KAT. Note: KAT is currently non-transferable — this will revert until KAT unlock (expected after Q1 2026).",
+        "Build an unsigned transaction to stake KAT → vKAT by creating a lock in the VotingEscrow contract. Returns a soulbound NFT (vKAT) with voting power. User must first approve VotingEscrow to spend their KAT.",
       inputSchema: {
         amount: z
           .string()
@@ -34,7 +34,7 @@ export function registerBuildStake(server: McpServer) {
         value: "0",
         chainId: chain.id,
         description: `Stake ${amount} KAT → vKAT (create lock in VotingEscrow)`,
-        note: `User must approve VotingEscrow (${escrowAddr}) to spend KAT first. KAT is currently non-transferable — this will revert until unlock.`,
+        note: `User must approve VotingEscrow (${escrowAddr}) to spend KAT first.`,
       };
 
       return {
