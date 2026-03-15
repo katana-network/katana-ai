@@ -206,6 +206,35 @@ export const MERKL_CONTRACTS = {
   distributor: "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae" as Address,
 } as const;
 
+// ─── KAT Token Ecosystem ───────────────────────────────────────────────────
+
+export const KAT_CONTRACTS = {
+  mainnet: {
+    kat: "0x7F1f4b4b29f5058fA32CC7a97141b8D7e5ABDC2d" as Address,
+    votingEscrow: "0x4d6fC15Ca6258b168225D283262743C623c13Ead" as Address,
+    nftLock: "0x106F7D67Ea25Cb9eFf5064CF604ebf6259Ff296d" as Address,
+    avKatVault: "0x7231dbaCdFc968E07656D12389AB20De82FbfCeB" as Address,
+    gaugeVoter: "0x5e755A3C5dc81A79DE7a7cEF192FFA60964c9352" as Address,
+    compoundStrategy: "0x60233D1c150F9C08D886906d597aA79a205b0463" as Address,
+    exitQueue: "0x6dE9cAAb658C744aD337Ca5d92D084c97ffF578d" as Address,
+    curve: "0x38b8B74330b2F918C22F7936aCf773C6D963C73c" as Address,
+    clock: "0x17049d374A2bcdA70F8939C21ad92bcF6B2A95ab" as Address,
+    swapper: "0x92D2e00b6D2BB50B87a9BE971a82B1F00ac44768" as Address,
+    escrowIVotesAdapter: "0xB67Ac05e2C1d8592692a90BF61712274b988f25A" as Address,
+    vkatMetadata: "0xb2143cFC740356E5FeFB4488e01026cfBb0A328F" as Address,
+    dao: "0xb72291652f15cF73651357383c0A86FBba29B675" as Address,
+    unlocker: "0x92D8Ce89fF02C640daf0B7c23d497cCF1880C390" as Address,
+  },
+} as const;
+
+export const KAT_CONSTANTS = {
+  unlockTime: 1742256000, // KAT became transferable March 18, 2026
+  cooldownPeriod: 3_888_000, // 45 days in seconds
+  minFeeBps: 250, // 2.5%
+  maxFeeBps: 2500, // 25%
+  bpsDenominator: 10_000,
+} as const;
+
 // ─── Price Feeds ────────────────────────────────────────────────────────────
 
 export const PRICE_FEEDS = {

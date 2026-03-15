@@ -67,7 +67,6 @@ interface MerklOpportunity {
 }
 
 export function registerGetMerklOpportunities(server: McpServer) {
-  // @ts-expect-error TS2589: Zod + MCP SDK deep type inference
   server.registerTool(
     "get_merkl_opportunities",
     {

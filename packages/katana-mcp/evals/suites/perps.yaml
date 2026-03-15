@@ -2,7 +2,7 @@
 # Helper: parse MCP tool response to JSON object
 # _p(output) handles both raw JSON and MCP content array format
 
-description: "Perps tools (48 tests covering 17 tools)"
+description: "Perps tools (50 tests covering 18 tools)"
 
 providers:
   - id: mcp
@@ -550,6 +550,33 @@ tests:
     assert:
       - type: javascript
         value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.domain.chainId === 737373"
+
+  # ╔══════════════════════════════════════════════════════════════════════════════╗
+  # ║  build_perps_deposit                                                       ║
+  # ╚══════════════════════════════════════════════════════════════════════════════╝
+
+  - description: "build_perps_deposit — targets Exchange contract on mainnet"
+    vars:
+      prompt: '{"tool": "build_perps_deposit", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "quantity": "1000", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.to.toLowerCase() === '0x835ba5b1b202773a94daaa07168b26b22584637a'
+            && o.chainId === 747474
+            && o.data && o.data.startsWith('0x');
+
+  - description: "build_perps_deposit — testnet targets testnet Exchange contract"
+    vars:
+      prompt: '{"tool": "build_perps_deposit", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "quantity": "500", "network": "testnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.to.toLowerCase() === '0xce3765616b9e354e64530875f492dc4dfddF2118'.toLowerCase()
+            && o.chainId === 737373;
 
   - description: "associate_perps_wallet — testnet uses correct domain"
     vars:

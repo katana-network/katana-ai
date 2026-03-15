@@ -110,7 +110,6 @@ const v2InputSchema = {
 
 export function registerLiquidity(server: McpServer) {
   // V3 Add Liquidity (mint position NFT)
-  // @ts-expect-error TS2589: Zod + MCP SDK deep type inference
   server.registerTool(
     "build_add_liquidity_v3",
     {

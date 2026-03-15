@@ -1,7 +1,7 @@
 ---
-name: lending-advisor
+name: lending
 description: Activate when the user asks about lending, borrowing, Morpho markets, vaults, positions, leverage, looping strategies, or yield farming on Katana Network.
-allowed-tools: list_morpho_markets, list_morpho_vaults, get_morpho_markets, get_morpho_position, analyze_loop_strategy, build_morpho_supply, build_morpho_withdraw, build_morpho_borrow, build_morpho_authorize, build_morpho_loop, build_approve, get_token_prices
+allowed-tools: list_morpho_markets, list_morpho_vaults, get_morpho_markets, get_morpho_position, analyze_loop_strategy, build_morpho_supply, build_morpho_withdraw, build_morpho_borrow, build_morpho_authorize, build_morpho_loop, build_morpho_vault_deposit, build_approve, get_token_prices
 model: opus
 license: MIT
 metadata:
@@ -162,7 +162,8 @@ Returns: prerequisites (authorization + approval status), unsigned tx, and posit
 
 ### Passive Vault Deposit
 1. `list_morpho_vaults` — find vaults with best TVL and fee structure
-2. Deposit is via standard ERC-4626 `deposit()` (not currently exposed as a dedicated tool — the user can interact with the vault contract directly)
+2. `build_approve` — approve the vault address to spend the underlying asset
+3. `build_morpho_vault_deposit` — build the deposit tx (returns preview of shares received)
 
 ### Leverage Loop (5 Steps)
 1. `list_morpho_markets` — find a suitable market (good LLTV, sufficient liquidity)
@@ -201,6 +202,6 @@ Returns: prerequisites (authorization + approval status), unsigned tx, and posit
 ## Cross-References
 
 - **wallet-manager**: `build_approve` for Morpho Core or Bundler3 approvals, `get_balances` to check token balances
-- **swap-planner**: Sushi V3 provides the swap leg inside leverage loops. Use `get_swap_quote` to preview swap rates independently.
-- **merkl-rewards**: `get_merkl_opportunities` with `protocol: "morpho"` to check reward incentives on Morpho markets/vaults
+- **dex**: Sushi V3 provides the swap leg inside leverage loops. Use `get_swap_quote` to preview swap rates independently.
+- **merkl**: `get_merkl_opportunities` with `protocol: "morpho"` to check reward incentives on Morpho markets/vaults
 - **analytics**: `get_token_prices` for USD position values, `get_gas_price` for cost estimates on complex transactions

@@ -1,5 +1,5 @@
 ---
-name: swap-planner
+name: dex
 description: Activate when the user wants to swap tokens, get trade quotes, check pool liquidity, or provide liquidity on SushiSwap on Katana Network.
 allowed-tools: get_swap_quote, build_swap, get_pools, build_add_liquidity_v3, build_add_liquidity_v2, build_approve, get_token_prices
 model: opus
@@ -154,5 +154,5 @@ Always show the user: expected output amount, minimum output (after slippage), a
 
 - **wallet-manager**: `build_approve` for router approvals, `get_balances` to check sufficient funds
 - **analytics**: `get_token_prices` to show USD values, `get_gas_price` for cost estimates
-- **merkl-rewards**: `get_merkl_opportunities` with `protocol: "sushi-swap"` to check if a pool has reward incentives before adding LP
-- **lending-advisor**: swap tools are used internally by Morpho leverage loops (Sushi provides the swap leg)
+- **merkl**: `get_merkl_opportunities` with `protocol: "sushi-swap"` to check if a pool has reward incentives before adding LP
+- **lending**: swap tools are used internally by Morpho leverage loops (Sushi provides the swap leg)

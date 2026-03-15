@@ -1,0 +1,190 @@
+# KAT token build tools and read tools
+# Tests verify all 12 KAT MCP tools return correct transaction data or on-chain reads
+
+description: "KAT build & read tools (14 tests)"
+
+providers:
+  - id: mcp
+    config:
+      enabled: true
+      server:
+        command: node
+        args: ["dist/server.js"]
+        name: katana
+
+prompts:
+  - "{{prompt}}"
+
+defaultTest:
+  options:
+    timeout: 30000
+
+tests:
+  # ── build_kat_stake ────────────────────────────────────────────────────────
+  - description: "build_kat_stake — returns valid tx with VotingEscrow target"
+    vars:
+      prompt: '{"tool": "build_kat_stake", "args": {"amount": "1000"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.to.toLowerCase() === '0x4d6fc15ca6258b168225d283262743c623c13ead'
+            && o.chainId === 747474
+            && o.data && o.data.startsWith('0x');
+
+  # ── build_kat_deposit_vault ────────────────────────────────────────────────
+  - description: "build_kat_deposit_vault — returns valid tx with vault target"
+    vars:
+      prompt: '{"tool": "build_kat_deposit_vault", "args": {"amount": "500", "receiver": "0x0000000000000000000000000000000000000001"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.to.toLowerCase() === '0x7231dbacdfc968e07656d12389ab20de82fbfceb'
+            && o.chainId === 747474
+            && o.data && o.data.startsWith('0x');
+
+  # ── build_kat_convert_to_vault ─────────────────────────────────────────────
+  - description: "build_kat_convert_to_vault — returns valid tx targeting vault"
+    vars:
+      prompt: '{"tool": "build_kat_convert_to_vault", "args": {"tokenId": "1", "receiver": "0x0000000000000000000000000000000000000001"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.to.toLowerCase() === '0x7231dbacdfc968e07656d12389ab20de82fbfceb'
+            && o.chainId === 747474;
+
+  # ── build_kat_begin_withdrawal ─────────────────────────────────────────────
+  - description: "build_kat_begin_withdrawal — returns valid tx with VotingEscrow target"
+    vars:
+      prompt: '{"tool": "build_kat_begin_withdrawal", "args": {"tokenId": "1"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.to.toLowerCase() === '0x4d6fc15ca6258b168225d283262743c623c13ead'
+            && o.chainId === 747474;
+
+  - description: "build_kat_begin_withdrawal — resetVotes uses atomic function"
+    vars:
+      prompt: '{"tool": "build_kat_begin_withdrawal", "args": {"tokenId": "1", "resetVotes": true}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.description.includes('vote reset')
+            && o.to.toLowerCase() === '0x4d6fc15ca6258b168225d283262743c623c13ead';
+
+  # ── build_kat_withdraw ─────────────────────────────────────────────────────
+  - description: "build_kat_withdraw — returns valid tx"
+    vars:
+      prompt: '{"tool": "build_kat_withdraw", "args": {"tokenId": "42"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.to.toLowerCase() === '0x4d6fc15ca6258b168225d283262743c623c13ead'
+            && o.description.includes('42');
+
+  # ── build_kat_cancel_withdrawal ────────────────────────────────────────────
+  - description: "build_kat_cancel_withdrawal — returns valid tx"
+    vars:
+      prompt: '{"tool": "build_kat_cancel_withdrawal", "args": {"tokenId": "7"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.to.toLowerCase() === '0x4d6fc15ca6258b168225d283262743c623c13ead'
+            && o.description.includes('7');
+
+  # ── build_kat_vote ─────────────────────────────────────────────────────────
+  - description: "build_kat_vote — returns valid tx targeting GaugeVoter"
+    vars:
+      prompt: '{"tool": "build_kat_vote", "args": {"tokenId": "1", "votes": "[{\"gauge\":\"0x0000000000000000000000000000000000000001\",\"weight\":10000}]"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.to.toLowerCase() === '0x5e755a3c5dc81a79de7a7cef192ffa60964c9352'
+            && o.chainId === 747474;
+
+  - description: "build_kat_vote — rejects weights that don't sum to 10000"
+    vars:
+      prompt: '{"tool": "build_kat_vote", "args": {"tokenId": "1", "votes": "[{\"gauge\":\"0x0000000000000000000000000000000000000001\",\"weight\":5000}]"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.error && o.error.includes('10000');
+
+  # ── build_kat_reset_votes ──────────────────────────────────────────────────
+  - description: "build_kat_reset_votes — returns valid tx targeting GaugeVoter"
+    vars:
+      prompt: '{"tool": "build_kat_reset_votes", "args": {"tokenId": "5"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.to.toLowerCase() === '0x5e755a3c5dc81a79de7a7cef192ffa60964c9352'
+            && o.description.includes('5');
+
+  # ── build_kat_merge ────────────────────────────────────────────────────────
+  - description: "build_kat_merge — returns valid tx with VotingEscrow target"
+    vars:
+      prompt: '{"tool": "build_kat_merge", "args": {"fromTokenId": "1", "toTokenId": "2"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.to.toLowerCase() === '0x4d6fc15ca6258b168225d283262743c623c13ead'
+            && o.description.includes('1') && o.description.includes('2');
+
+  # ── build_kat_split ────────────────────────────────────────────────────────
+  - description: "build_kat_split — returns valid tx with VotingEscrow target"
+    vars:
+      prompt: '{"tool": "build_kat_split", "args": {"tokenId": "3", "amount": "250"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.to.toLowerCase() === '0x4d6fc15ca6258b168225d283262743c623c13ead'
+            && o.description.includes('250');
+
+  # ── get_kat_gauges ─────────────────────────────────────────────────────────
+  - description: "get_kat_gauges — returns gauge list or empty with note"
+    vars:
+      prompt: '{"tool": "get_kat_gauges", "args": {}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return Array.isArray(o.gauges) && typeof o.totalGauges === 'number';
+    options:
+      timeout: 45000
+
+  # ── get_kat_locks ──────────────────────────────────────────────────────────
+  - description: "get_kat_locks — returns empty for address with no locks"
+    vars:
+      prompt: '{"tool": "get_kat_locks", "args": {"address": "0x0000000000000000000000000000000000000001"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return Array.isArray(o.locks) && o.totalLocks === 0;
+    options:
+      timeout: 45000

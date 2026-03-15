@@ -1,0 +1,120 @@
+# KAT token ecosystem: contract reference, token prices, balances
+# Tests verify KAT ecosystem data is correctly surfaced through existing tools
+
+description: "KAT token ecosystem (7 tests)"
+
+providers:
+  - id: mcp
+    config:
+      enabled: true
+      server:
+        command: node
+        args: ["dist/server.js"]
+        name: katana
+
+prompts:
+  - "{{prompt}}"
+
+defaultTest:
+  options:
+    timeout: 30000
+
+tests:
+  # ── get_contract_reference — KAT ecosystem addresses ──────────────────────
+  - description: "get_contract_reference — includes KAT ecosystem section"
+    vars:
+      prompt: '{"tool": "get_contract_reference", "args": {}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return !!(o.kat && o.kat.token && o.kat.votingEscrow && o.kat.avKatVault);
+
+  - description: "get_contract_reference — KAT contract addresses are correct"
+    vars:
+      prompt: '{"tool": "get_contract_reference", "args": {}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.kat.token.toLowerCase() === '0x7f1f4b4b29f5058fa32cc7a97141b8d7e5abdc2d'
+            && o.kat.votingEscrow.toLowerCase() === '0x4d6fc15ca6258b168225d283262743c623c13ead'
+            && o.kat.avKatVault.toLowerCase() === '0x7231dbacdfc968e07656d12389ab20de82fbfceb';
+
+  - description: "get_contract_reference — KAT has key function signatures"
+    vars:
+      prompt: '{"tool": "get_contract_reference", "args": {}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          const kf = o.kat && o.kat.keyFunctions;
+          return !!(kf && kf.votingEscrow && kf.vault && kf.gaugeVoter && kf.token);
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          const kf = o.kat.keyFunctions;
+          return kf.votingEscrow.includes('createLock') && kf.votingEscrow.includes('beginWithdrawal')
+            && kf.vault.includes('deposit') && kf.vault.includes('redeem')
+            && kf.gaugeVoter.includes('vote') && kf.gaugeVoter.includes('reset');
+
+  - description: "get_contract_reference — KAT has exit fee details"
+    vars:
+      prompt: '{"tool": "get_contract_reference", "args": {}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          const ef = o.kat && o.kat.exitFee;
+          return !!(ef && ef.cooldown && ef.minFee && ef.maxFee && ef.formula);
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          const ef = o.kat.exitFee;
+          return ef.minFee.includes('2.5%') && ef.maxFee.includes('25%') && ef.cooldown.includes('45 days');
+
+  - description: "get_contract_reference — KAT has all ecosystem contracts"
+    vars:
+      prompt: '{"tool": "get_contract_reference", "args": {}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          const k = o.kat;
+          return !!(k.token && k.votingEscrow && k.nftLock && k.avKatVault
+            && k.gaugeVoter && k.compoundStrategy && k.exitQueue && k.clock && k.swapper);
+
+  # ── get_token_prices — KAT price ──────────────────────────────────────────
+  - description: "get_token_prices — returns KAT price"
+    vars:
+      prompt: '{"tool": "get_token_prices", "args": {"tokens": "KAT", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          const kat = o.tokens && o.tokens.find(t => t.symbol === 'KAT');
+          return !!(kat && kat.address && (kat.priceUSD >= 0 || kat.error));
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          const kat = o.tokens.find(t => t.symbol === 'KAT');
+          return kat.address.toLowerCase() === '0x7f1f4b4b29f5058fa32cc7a97141b8d7e5abdc2d';
+    options:
+      timeout: 45000
+
+  # ── get_contract_reference — KAT note about transferability ────────────────
+  - description: "get_contract_reference — KAT transferable note present"
+    vars:
+      prompt: '{"tool": "get_contract_reference", "args": {}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          return o.kat && o.kat.note && o.kat.note.toLowerCase().includes('transferable');

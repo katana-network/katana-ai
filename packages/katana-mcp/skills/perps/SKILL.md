@@ -40,6 +40,7 @@ Trade perpetual futures on Katana Perps — a non-custodial, cross-margined perp
 | `cancel_perps_order` | Cancel by order IDs, market, or all |
 | `build_perps_withdraw` | Withdraw to Katana or cross-chain via Stargate |
 | `associate_perps_wallet` | Associate wallet with API account (first-time setup) |
+| `build_perps_deposit` | Deposit vbUSDC into the perps exchange (fund trading account) |
 
 ## Key Concepts
 
@@ -119,7 +120,14 @@ cancel_perps_order(wallet: "0x...", market: "ETH-USD")         # all in market
 cancel_perps_order(wallet: "0x...")                              # all orders
 ```
 
-### 6. Withdraw Funds
+### 6. Fund Trading Account
+```
+get_perps_exchange → get quoteTokenAddress (vbUSDC) and exchangeContractAddress
+build_approve(spender: exchangeContractAddress, token: quoteTokenAddress, amount: "1000")
+build_perps_deposit(wallet: "0x...", quantity: "1000")
+```
+
+### 7. Withdraw Funds
 ```
 get_perps_gas_fees → check current gas fees
 build_perps_withdraw(
