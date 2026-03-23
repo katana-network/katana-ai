@@ -70,12 +70,7 @@ tests:
         value: |
           const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
           const ef = o.kat && o.kat.exitFee;
-          return !!(ef && ef.cooldown && ef.minFee && ef.maxFee && ef.formula);
-      - type: javascript
-        value: |
-          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
-          const ef = o.kat.exitFee;
-          return ef.minFee.includes('2.5%') && ef.maxFee.includes('25%') && ef.cooldown.includes('45 days');
+          return !!(ef && ef.cooldown && ef.minFee && ef.maxFee && ef.formula && ef.source === 'live from ExitQueue contract');
 
   - description: "get_contract_reference — KAT has all ecosystem contracts"
     vars:

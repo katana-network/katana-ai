@@ -283,10 +283,10 @@ export const KAT_CONTRACTS = {
 
 export const KAT_CONSTANTS = {
   unlockTime: 1742256000, // KAT became transferable March 18, 2026
-  cooldownPeriod: 3_888_000, // 45 days in seconds
-  minFeeBps: 250, // 2.5%
-  maxFeeBps: 2500, // 25%
   bpsDenominator: 10_000,
+  // NOTE: cooldown and fee params are now read live from the ExitQueue contract
+  // via getExitParams() in src/tools/kat/exit-params.ts.
+  // These values change over time (governance updates). Do NOT hardcode them.
 } as const;
 
 // ─── Price Feeds ────────────────────────────────────────────────────────────

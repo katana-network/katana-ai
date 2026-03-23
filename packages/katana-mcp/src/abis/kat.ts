@@ -298,6 +298,49 @@ export const gaugeVoterAbi = [
   },
 ] as const;
 
+// ─── Exit Queue ─────────────────────────────────────────────────────────────
+
+export const exitQueueAbi = [
+  {
+    type: "function",
+    name: "cooldown",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "feePercent",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "minFeePercent",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "queue",
+    stateMutability: "view",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [
+      { name: "holder", type: "address" },
+      { name: "createdAt", type: "uint48" },
+    ],
+  },
+  {
+    type: "function",
+    name: "canExit",
+    stateMutability: "view",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+] as const;
+
 // ─── NFT Lock (ERC-721 for vKAT positions) ──────────────────────────────────
 
 export const nftLockAbi = [

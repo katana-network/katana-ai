@@ -1,4 +1,5 @@
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { getExitParams } from "../kat/exit-params.js";
 
 const REFERENCE = {
   chainId: 747474,
@@ -63,12 +64,7 @@ const REFERENCE = {
       gaugeVoter: "vote(uint256 tokenId, (address gauge, uint256 weight)[]) | reset(uint256 tokenId) | getAllGauges()→address[] | getActiveGauges()→address[]",
       token: "transfer(address to, uint256 amount)→bool | approve(address spender, uint256 amount)→bool",
     },
-    exitFee: {
-      cooldown: "45 days (3888000 seconds)",
-      minFee: "2.5% (250 bps) — after full cooldown",
-      maxFee: "25% (2500 bps) — immediate rage quit",
-      formula: "fee = 25% - ((25% - 2.5%) × daysWaited / 45)",
-    },
+    exitFee: "fetched live from ExitQueue contract — see exitParams in response",
   },
   infra: {
     multicall3: "0xcA11bde05977b3631167028862bE2a173976CA11",
@@ -101,19 +97,43 @@ const REFERENCE = {
   },
 };
 
-// Pre-stringify once at startup
-const REFERENCE_JSON = JSON.stringify(REFERENCE);
-
 export function registerContractReference(server: McpServer) {
   server.registerTool(
     "get_contract_reference",
     {
       description:
-        "Static reference of all Katana contract addresses, key function signatures, token list, and protocol details. No RPC calls — instant response. Use this first when building transactions, designing integrations, or exploring what's available on Katana.",
+        "Reference of all Katana contract addresses, key function signatures, token list, and protocol details. Exit fee parameters are fetched live from the on-chain ExitQueue contract. Use this first when building transactions, designing integrations, or exploring what's available on Katana.",
       inputSchema: {},
     },
-    async () => ({
-      content: [{ type: "text" as const, text: REFERENCE_JSON }],
-    })
+    async () => {
+      // Fetch live exit params — these change over time (governance can update)
+      let exitFee: Record<string, unknown>;
+      try {
+        const params = await getExitParams("mainnet");
+        exitFee = {
+          cooldown: `${params.cooldownDays} days (${params.cooldownSeconds} seconds)`,
+          minFee: `${params.minFeePercent} (${params.minFeeBps} bps) — after full cooldown`,
+          maxFee: `${params.maxFeePercent} (${params.maxFeeBps} bps) — immediate rage quit`,
+          formula: `fee = ${params.maxFeePercent} - ((${params.maxFeePercent} - ${params.minFeePercent}) × daysWaited / ${params.cooldownDays})`,
+          source: "live from ExitQueue contract",
+        };
+      } catch {
+        exitFee = {
+          note: "Could not fetch live exit params from ExitQueue contract. Values may have changed — check on-chain.",
+        };
+      }
+
+      const response = {
+        ...REFERENCE,
+        kat: {
+          ...REFERENCE.kat,
+          exitFee,
+        },
+      };
+
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(response) }],
+      };
+    }
   );
 }

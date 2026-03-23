@@ -68,7 +68,10 @@ tests:
         value: |
           const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
           return o.to.toLowerCase() === '0x4d6fc15ca6258b168225d283262743c623c13ead'
-            && o.chainId === 747474;
+            && o.chainId === 747474
+            && o.exitParams && typeof o.exitParams.cooldownDays === 'number'
+            && typeof o.exitParams.maxFeeBps === 'number'
+            && typeof o.exitParams.minFeeBps === 'number';
 
   - description: "build_kat_begin_withdrawal — resetVotes uses atomic function"
     vars:
@@ -91,7 +94,8 @@ tests:
         value: |
           const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
           return o.to.toLowerCase() === '0x4d6fc15ca6258b168225d283262743c623c13ead'
-            && o.description.includes('42');
+            && o.description.includes('42')
+            && o.exitParams && typeof o.exitParams.cooldownDays === 'number';
 
   # ── build_kat_cancel_withdrawal ────────────────────────────────────────────
   - description: "build_kat_cancel_withdrawal — returns valid tx"
