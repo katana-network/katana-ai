@@ -1,4 +1,5 @@
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { getExitParams } from "../kat/exit-params.js";
 
 const REFERENCE = {
   chainId: 747474,
@@ -56,19 +57,14 @@ const REFERENCE = {
     exitQueue: "0x6dE9cAAb658C744aD337Ca5d92D084c97ffF578d",
     clock: "0x17049d374A2bcdA70F8939C21ad92bcF6B2A95ab",
     swapper: "0x92D2e00b6D2BB50B87a9BE971a82B1F00ac44768",
-    note: "KAT is fully transferable as of March 18, 2026. All transfers, staking, and vault deposits are enabled.",
+    note: "KAT is fully transferable. All transfers, staking, and vault deposits are enabled.",
     keyFunctions: {
       votingEscrow: "createLock(uint256 amount)→uint256 tokenId | beginWithdrawal(uint256 tokenId) | withdraw(uint256 tokenId) | cancelWithdrawalRequest(uint256 tokenId) | resetVotesAndBeginWithdrawal(uint256 tokenId) | merge(uint256 fromTokenId, uint256 toTokenId) | split(uint256 tokenId, uint256 amount)→uint256 newTokenId | locked(uint256 tokenId)→(uint256 amount, uint256 start) | votingPower(uint256 tokenId)→uint256",
       vault: "deposit(uint256 assets, address receiver)→uint256 shares | redeem(uint256 shares, address receiver, address owner)→uint256 assets | convertToShares(uint256 assets)→uint256 | convertToAssets(uint256 shares)→uint256",
       gaugeVoter: "vote(uint256 tokenId, (address gauge, uint256 weight)[]) | reset(uint256 tokenId) | getAllGauges()→address[] | getActiveGauges()→address[]",
-      token: "locked()→bool | unlockAndRenounceUnlocker()",
+      token: "transfer(address to, uint256 amount)→bool | approve(address spender, uint256 amount)→bool",
     },
-    exitFee: {
-      cooldown: "45 days (3888000 seconds)",
-      minFee: "2.5% (250 bps) — after full cooldown",
-      maxFee: "25% (2500 bps) — immediate rage quit",
-      formula: "fee = 25% - ((25% - 2.5%) × daysWaited / 45)",
-    },
+    exitFee: "fetched live from ExitQueue contract — see exitParams in response",
   },
   infra: {
     multicall3: "0xcA11bde05977b3631167028862bE2a173976CA11",
@@ -82,28 +78,62 @@ const REFERENCE = {
     USDC: { address: "0x203A662b0BD271A6ed5a60EdFbd04bFce608FD36", decimals: 6 },
     USDT: { address: "0x2DCa96907fde857dd3D816880A0df407eeB2D2F2", decimals: 6 },
     USDS: { address: "0x62D6A123E8D19d06d68cf0d2294F9A3A0362c6b3", decimals: 18 },
-    AUSD: { address: "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a", decimals: 18 },
+    AUSD: { address: "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a", decimals: 6 },
     LBTC: { address: "0xecAc9C5F704e954931349Da37F60E39f515c11c1", decimals: 8 },
     weETH: { address: "0x9893989433e7a383Cb313953e4c2365107dc19a7", decimals: 18 },
     wstETH: { address: "0x7Fb4D0f51544F24F385a421Db6e7D4fC71Ad8e5C", decimals: 18 },
     MORPHO: { address: "0x1e5eFCA3D0dB2c6d5C67a4491845c43253eB9e4e", decimals: 18 },
     SUSHI: { address: "0x17BFF452dae47e07CeA877Ff0E1aba17eB62b0aB", decimals: 18 },
+    avKAT: { address: "0x7231dbaCdFc968E07656D12389AB20De82FbfCeB", decimals: 18, note: "ERC-4626 vault token, auto-compounding KAT" },
+    vKAT: { address: "0x106F7D67Ea25Cb9eFf5064CF604ebf6259Ff296d", decimals: 0, note: "NFT (non-fungible lock position, not swappable)" },
+    jitoSOL: { address: "0x6C16E26013f2431e8B2e1Ba7067ECCcad0Db6C52", decimals: 18 },
+    BTCK: { address: "0xB0F70C0bD6FD87dbEb7C10dC692a2a6106817072", decimals: 8 },
+    POL: { address: "0xb24e3035d1FCBC0E43CF3143C3Fd92E53df2009b", decimals: 18 },
+    YFI: { address: "0x476eaCd417cD65421bD34fca054377658BB5E02b", decimals: 18 },
+    uSOL: { address: "0x9B8Df6E244526ab5F6e6400d331DB28C8fdDdb55", decimals: 18, note: "Universal Token" },
+    uSUI: { address: "0xb0505e5a99abd03d94a1169e638B78EDfEd26ea4", decimals: 18, note: "Universal Token" },
+    uADA: { address: "0xa3A34A0D9A08CCDDB6Ed422Ac0A28a06731335aA", decimals: 18, note: "Universal Token" },
+    uXRP: { address: "0x2615a94df961278DcbC41Fb0a54fEc5f10a693aE", decimals: 18, note: "Universal Token" },
   },
 };
-
-// Pre-stringify once at startup
-const REFERENCE_JSON = JSON.stringify(REFERENCE);
 
 export function registerContractReference(server: McpServer) {
   server.registerTool(
     "get_contract_reference",
     {
       description:
-        "Static reference of all Katana contract addresses, key function signatures, token list, and protocol details. No RPC calls — instant response. Use this first when building transactions, designing integrations, or exploring what's available on Katana.",
+        "Reference of all Katana contract addresses, key function signatures, token list, and protocol details. Exit fee parameters are fetched live from the on-chain ExitQueue contract. Use this first when building transactions, designing integrations, or exploring what's available on Katana.",
       inputSchema: {},
     },
-    async () => ({
-      content: [{ type: "text" as const, text: REFERENCE_JSON }],
-    })
+    async () => {
+      // Fetch live exit params — these change over time (governance can update)
+      let exitFee: Record<string, unknown>;
+      try {
+        const params = await getExitParams("mainnet");
+        exitFee = {
+          cooldown: `${params.cooldownDays} days (${params.cooldownSeconds} seconds)`,
+          minFee: `${params.minFeePercent} (${params.minFeeBps} bps) — after full cooldown`,
+          maxFee: `${params.maxFeePercent} (${params.maxFeeBps} bps) — immediate rage quit`,
+          formula: `fee = ${params.maxFeePercent} - ((${params.maxFeePercent} - ${params.minFeePercent}) × daysWaited / ${params.cooldownDays})`,
+          source: "live from ExitQueue contract",
+        };
+      } catch {
+        exitFee = {
+          note: "Could not fetch live exit params from ExitQueue contract. Values may have changed — check on-chain.",
+        };
+      }
+
+      const response = {
+        ...REFERENCE,
+        kat: {
+          ...REFERENCE.kat,
+          exitFee,
+        },
+      };
+
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(response) }],
+      };
+    }
   );
 }

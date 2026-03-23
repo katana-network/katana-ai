@@ -4,13 +4,14 @@ import { encodeFunctionData } from "viem";
 import { KAT_CONTRACTS } from "../../config/contracts.js";
 import { getChain } from "../../config/chains.js";
 import { votingEscrowAbi } from "../../abis/kat.js";
+import { getExitParams, formatExitNote } from "./exit-params.js";
 
 export function registerBuildWithdraw(server: McpServer) {
   server.registerTool(
     "build_kat_withdraw",
     {
       description:
-        "Build an unsigned transaction to complete a vKAT withdrawal after the cooldown period has started. Returns KAT minus the exit fee. The fee depends on how long the user waited: 25% (immediate rage quit) down to 2.5% (after full 45-day cooldown). Must call build_kat_begin_withdrawal first.",
+        "Build an unsigned transaction to complete a vKAT withdrawal after the cooldown period has started. Returns KAT minus the exit fee. The fee depends on how long the user waited — read from on-chain ExitQueue contract. Must call build_kat_begin_withdrawal first.",
       inputSchema: {
         tokenId: z
           .string()
@@ -21,11 +22,14 @@ export function registerBuildWithdraw(server: McpServer) {
       const chain = getChain("mainnet");
       const escrowAddr = KAT_CONTRACTS.mainnet.votingEscrow;
 
-      const data = encodeFunctionData({
-        abi: votingEscrowAbi,
-        functionName: "withdraw",
-        args: [BigInt(tokenId)],
-      });
+      const [data, exitParams] = await Promise.all([
+        encodeFunctionData({
+          abi: votingEscrowAbi,
+          functionName: "withdraw",
+          args: [BigInt(tokenId)],
+        }),
+        getExitParams("mainnet"),
+      ]);
 
       const tx = {
         to: escrowAddr,
@@ -33,7 +37,8 @@ export function registerBuildWithdraw(server: McpServer) {
         value: "0",
         chainId: chain.id,
         description: `Withdraw vKAT #${tokenId} → KAT (minus exit fee)`,
-        note: "Exit fee: 25% at day 0, decays to 2.5% at day 45. Must have called beginWithdrawal first.",
+        note: `Exit fee: ${formatExitNote(exitParams)} Must have called beginWithdrawal first.`,
+        exitParams,
       };
 
       return {
