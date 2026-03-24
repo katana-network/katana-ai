@@ -18,7 +18,7 @@ Read-only tools for market data, gas estimation, and transaction debugging on Ka
 - Mainnet chain ID: **747474** / Testnet (Bokuto): **737373**
 - Gas token: ETH
 - 1-second block times, EIP-1559 gas pricing
-- Explorer: katanascan.io (mainnet), bokuto.katanascan.io (testnet)
+- Explorer: katanascan.com (mainnet), bokuto.katanascan.com (testnet)
 
 ## Known Tokens
 

@@ -113,8 +113,8 @@ export function registerTxLookup(server: McpServer) {
         // Include explorer link
         const explorer =
           net === "mainnet"
-            ? "https://katanascan.io"
-            : "https://bokuto.katanascan.io";
+            ? "https://katanascan.com"
+            : "https://bokuto.katanascan.com";
         response.explorerUrl = `${explorer}/tx/${txData.hash}`;
       }
 
