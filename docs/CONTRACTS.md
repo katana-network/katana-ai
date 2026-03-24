@@ -8,7 +8,7 @@
 | RPC | https://rpc.katana.network/ | https://rpc-bokuto.katanarpc.com |
 | RPC (Tenderly) | https://katana.gateway.tenderly.co/ | — |
 | RPC (Conduit) | https://rpc.katanarpc.com/ | — |
-| Explorer | https://katanascan.com/ | https://bokuto.katanascan.com/ |
+| Explorer | https://katanascan.io/ | https://bokuto.katanascan.io/ |
 | Bridge UI | https://bridge.katana.network/ | — |
 | Faucet | — | https://faucet.katana.tools/ |
 | Block Time | 1 second | 1 second |

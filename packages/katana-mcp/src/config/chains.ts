@@ -14,7 +14,7 @@ export const katana = defineChain({
     conduit: { http: ["https://rpc.katanarpc.com/"] },
   },
   blockExplorers: {
-    default: { name: "Katanascan", url: "https://katanascan.com" },
+    default: { name: "Katanascan", url: "https://katanascan.io" },
   },
   contracts: {
     multicall3: {
@@ -35,7 +35,7 @@ export const bokuto = defineChain({
     default: { http: ["https://rpc-bokuto.katanarpc.com"] },
   },
   blockExplorers: {
-    default: { name: "Katanascan Bokuto", url: "https://bokuto.katanascan.com" },
+    default: { name: "Katanascan Bokuto", url: "https://bokuto.katanascan.io" },
     blockscout: { name: "Blockscout", url: "https://explorer-bokuto.katanarpc.com" },
   },
   testnet: true,
