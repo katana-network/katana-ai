@@ -13,5 +13,8 @@
   "devDependencies": {
     "conventional-changelog-conventionalcommits": "^8.0.0",
     "semantic-release": "^24.2.0"
+  },
+  "overrides": {
+    "axios": "1.13.6"
   }
 }
