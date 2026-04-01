@@ -123,9 +123,9 @@ export async function getMultiHopQuotes(
     if (r) quotes.push(r);
   }
 
-  // V2 multi-hop: try each intermediary
-  for (const mid of hops) {
-    try {
+  // V2 multi-hop: try each intermediary in parallel
+  const v2Results = await Promise.allSettled(
+    hops.map(async (mid) => {
       const amounts = await client.readContract({
         address: sushi.v2Router,
         abi: sushiV2RouterAbi,
@@ -135,12 +135,16 @@ export async function getMultiHopQuotes(
       const midSymbol = Object.values(MAINNET_TOKENS).find(
         (t) => t.address.toLowerCase() === mid.toLowerCase()
       )?.symbol ?? mid.slice(0, 10);
-      quotes.push({
+      return {
         amountOut: amounts[amounts.length - 1],
         source: `V2 multi (→${midSymbol}→)`,
         fee: 6000,
-      });
-    } catch {}
+      };
+    })
+  );
+
+  for (const r of v2Results) {
+    if (r.status === "fulfilled") quotes.push(r.value);
   }
 
   return quotes;

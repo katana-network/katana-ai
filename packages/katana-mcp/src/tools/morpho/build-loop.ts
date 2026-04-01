@@ -77,7 +77,7 @@ export function registerBuildLoop(server: McpServer) {
     "build_morpho_loop",
     {
       description:
-        "Build an atomic leveraged loop transaction using Morpho flashloans + Bundler3. Executes supply → flashloan → swap → supply collateral → borrow in a single transaction. Returns unsigned Bundler3.multicall tx data, prerequisite checks, and position summary. Requires build_morpho_authorize first.",
+        "Build an atomic leveraged loop transaction using Morpho flashloans + Bundler3. Executes supply → flashloan → swap → supply collateral → borrow in a single transaction. Returns unsigned Bundler3.multicall tx data, prerequisite checks, and position summary. Requires build_morpho_authorize first. NOTE: This tool makes several on-chain reads (market params, token metadata, swap quotes, prerequisite checks) and may take 10-20 seconds to complete. If it times out, try again — the RPC can be slow under load.",
       inputSchema,
     },
     async ({
@@ -98,7 +98,7 @@ export function registerBuildLoop(server: McpServer) {
       const user = userAddress as Address;
       const id = marketId as `0x${string}`;
 
-      // ── 1. Fetch market params ────────────────────────────────────
+      // ── 1. Fetch market params + token metadata in one batch ─────
       const params = await client.readContract({
         address: morpho,
         abi: morphoAbi,
@@ -132,36 +132,32 @@ export function registerBuildLoop(server: McpServer) {
         };
       }
 
-      // ── 2. Fetch token metadata ──────────────────────────────────
-      const [collSym, collDec, loanSym, loanDec] = await Promise.all([
+      // ── 2. Batch token metadata + prerequisites in one round-trip ─
+      const [collSym, collDec, loanSym, loanDec, isAuthorized, collateralAllowance] = await Promise.all([
         client
-          .readContract({
-            address: collateralToken,
-            abi: erc20Abi,
-            functionName: "symbol",
-          })
+          .readContract({ address: collateralToken, abi: erc20Abi, functionName: "symbol" })
           .catch(() => "???"),
         client
-          .readContract({
-            address: collateralToken,
-            abi: erc20Abi,
-            functionName: "decimals",
-          })
+          .readContract({ address: collateralToken, abi: erc20Abi, functionName: "decimals" })
           .catch(() => 18),
         client
-          .readContract({
-            address: loanToken,
-            abi: erc20Abi,
-            functionName: "symbol",
-          })
+          .readContract({ address: loanToken, abi: erc20Abi, functionName: "symbol" })
           .catch(() => "???"),
         client
-          .readContract({
-            address: loanToken,
-            abi: erc20Abi,
-            functionName: "decimals",
-          })
+          .readContract({ address: loanToken, abi: erc20Abi, functionName: "decimals" })
           .catch(() => 18),
+        client.readContract({
+          address: morpho,
+          abi: morphoAbi,
+          functionName: "isAuthorized",
+          args: [user, adapter],
+        }),
+        client.readContract({
+          address: collateralToken,
+          abi: erc20Abi,
+          functionName: "allowance",
+          args: [user, bundler3],
+        }),
       ]);
 
       const collSymbol = collSym as string;
@@ -248,22 +244,7 @@ export function registerBuildLoop(server: McpServer) {
       const effectiveLeverage =
         Number(totalCollateralWei) / Number(initialCollateralWei);
 
-      // ── 5. Check prerequisites ────────────────────────────────────
-      const [isAuthorized, collateralAllowance] = await Promise.all([
-        client.readContract({
-          address: morpho,
-          abi: morphoAbi,
-          functionName: "isAuthorized",
-          args: [user, adapter],
-        }),
-        client.readContract({
-          address: collateralToken,
-          abi: erc20Abi,
-          functionName: "allowance",
-          args: [user, bundler3],
-        }),
-      ]);
-
+      // ── 5. Check prerequisites (already fetched in batch above) ──
       const prerequisites: Array<{
         action: string;
         required: boolean;

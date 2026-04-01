@@ -249,10 +249,10 @@ export const gaugeVoterAbi = [
   },
   {
     type: "function",
-    name: "getActiveGauges",
+    name: "gauges",
     stateMutability: "view",
-    inputs: [],
-    outputs: [{ name: "", type: "address[]" }],
+    inputs: [{ name: "gauge", type: "address" }],
+    outputs: [{ name: "", type: "bool" }],
   },
   {
     type: "function",
@@ -282,20 +282,9 @@ export const gaugeVoterAbi = [
     inputs: [],
     outputs: [{ name: "", type: "uint256" }],
   },
-  {
-    type: "function",
-    name: "isGauge",
-    stateMutability: "view",
-    inputs: [{ name: "gauge", type: "address" }],
-    outputs: [{ name: "", type: "bool" }],
-  },
-  {
-    type: "function",
-    name: "isAlive",
-    stateMutability: "view",
-    inputs: [{ name: "gauge", type: "address" }],
-    outputs: [{ name: "", type: "bool" }],
-  },
+  // Note: isGauge() and isAlive() do NOT exist on this contract.
+  // Use gauges(address) → bool to check if a gauge is active.
+  // Gauge addresses ARE pool addresses — call token0(), token1(), fee() directly on them.
 ] as const;
 
 // ─── Exit Queue ─────────────────────────────────────────────────────────────
