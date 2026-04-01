@@ -34,7 +34,7 @@ export function registerAnalyzeLoop(server: McpServer) {
     "analyze_loop_strategy",
     {
       description:
-        "Analyze a Morpho looping strategy with real Sushi swap slippage. Given a market and collateral amount, simulates N loop iterations (supply → borrow → swap → supply) and the full unwind. Uses QuoterV2 for real price impact at each step. Returns per-loop breakdown, unwind analysis, and total slippage cost.",
+        "Analyze a Morpho looping strategy with real Sushi swap slippage. Given a market and collateral amount, simulates N loop iterations (supply → borrow → swap → supply) and the full unwind. Uses QuoterV2 for real price impact at each step. Returns per-loop breakdown, unwind analysis, and total slippage cost. NOTE: This tool queries multiple swap routes per loop iteration and may take 10-20 seconds. If it times out, try again — the RPC can be slow under load.",
       inputSchema,
     },
     async ({ marketId, amount, loops, network }) => {
@@ -64,7 +64,8 @@ export function registerAnalyzeLoop(server: McpServer) {
       const lltv = params.lltv as bigint;
       const lltvNum = Number(lltv) / 1e18;
 
-      // Fetch token metadata
+      // ── 2. Batch token metadata + unit prices in one round-trip ────
+      // All 6 calls fire together via multicall batching on the client
       const [collSym, collDec, loanSym, loanDec] = await Promise.all([
         client.readContract({ address: collateralAddr, abi: erc20Abi, functionName: "symbol" }).catch(() => "???"),
         client.readContract({ address: collateralAddr, abi: erc20Abi, functionName: "decimals" }).catch(() => 18),
@@ -81,7 +82,7 @@ export function registerAnalyzeLoop(server: McpServer) {
       const totalBorrow = state[2] as bigint;
       const availableBorrow = totalSupply - totalBorrow;
 
-      // ── 2. Get unit prices from Sushi (small amount for zero-impact baseline) ──
+      // Unit prices can now be fetched knowing decimals
       const unitAmountLoan = parseUnits("0.01", loanDecimals);
       const unitAmountColl = parseUnits("0.01", collDecimals);
 
@@ -187,14 +188,21 @@ export function registerAnalyzeLoop(server: McpServer) {
         });
       }
 
-      // ── 4. Simulate unwind (reverse order) ─────────────────────────
+      // ── 4. Simulate unwind — fetch all quotes in parallel ──────────
+      // Unwind amounts are known from the loop phase, so fire all at once
+      const unwindQuotes = await Promise.all(
+        collateralPerLoop.map((collToSell) =>
+          getBestQuote(client, collateralAddr, loanAddr, collToSell)
+        )
+      );
+
       let remainingDebtWei = cumulativeDebtWei;
       const unwindSteps: Array<Record<string, string | number>> = [];
 
+      // Process in reverse order (unwind last loop first)
       for (let i = collateralPerLoop.length - 1; i >= 0; i--) {
         const collToSell = collateralPerLoop[i];
-
-        const unwindQuote = await getBestQuote(client, collateralAddr, loanAddr, collToSell);
+        const unwindQuote = unwindQuotes[i];
 
         if (!unwindQuote) {
           unwindSteps.push({
