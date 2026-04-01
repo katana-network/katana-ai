@@ -22,38 +22,30 @@ export function registerGetGauges(server: McpServer) {
       const client = getClient("mainnet" as NetworkName);
       const voterAddr = KAT_CONTRACTS.mainnet.gaugeVoter;
 
-      // Try active gauges first, fall back to all gauges if it reverts
+      // getActiveGauges() does NOT exist on Katana's voter contract.
+      // Use getAllGauges() and filter with gauges(addr) → bool for active status.
       let gauges: readonly `0x${string}`[];
       try {
         gauges = await client.readContract({
           address: voterAddr,
           abi: gaugeVoterAbi,
-          functionName: activeOnly ? "getActiveGauges" : "getAllGauges",
+          functionName: "getAllGauges",
         }) as readonly `0x${string}`[];
       } catch {
-        // getActiveGauges may revert if no gauges exist yet; try getAllGauges
-        try {
-          gauges = await client.readContract({
-            address: voterAddr,
-            abi: gaugeVoterAbi,
-            functionName: "getAllGauges",
-          }) as readonly `0x${string}`[];
-        } catch {
-          // No gauges available at all
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify({
-                  gauges: [],
-                  totalGauges: 0,
-                  totalVotingPowerCast: "0",
-                  note: "No gauges found. The gauge system may not be active yet.",
-                }),
-              },
-            ],
-          };
-        }
+        // No gauges available at all
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({
+                gauges: [],
+                totalGauges: 0,
+                totalVotingPowerCast: "0",
+                note: "No gauges found. The gauge system may not be active yet.",
+              }),
+            },
+          ],
+        };
       }
 
       let totalPower: bigint;
@@ -80,7 +72,7 @@ export function registerGetGauges(server: McpServer) {
             client.readContract({
               address: voterAddr,
               abi: gaugeVoterAbi,
-              functionName: "isAlive",
+              functionName: "gauges",
               args: [gauge as Address],
             }),
           ]);
@@ -102,9 +94,14 @@ export function registerGetGauges(server: McpServer) {
         })
       );
 
+      // Filter to active-only if requested (gauges(addr) → bool = active status)
+      const filtered = activeOnly
+        ? gaugeDetails.filter((g) => g.isAlive)
+        : gaugeDetails;
+
       const response = {
-        gauges: gaugeDetails,
-        totalGauges: gaugeDetails.length,
+        gauges: filtered,
+        totalGauges: filtered.length,
         totalVotingPowerCast: formatUnits(totalPower, 18),
       };
 

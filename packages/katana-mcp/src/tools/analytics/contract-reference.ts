@@ -61,7 +61,7 @@ const REFERENCE = {
     keyFunctions: {
       votingEscrow: "createLock(uint256 amount)→uint256 tokenId | beginWithdrawal(uint256 tokenId) | withdraw(uint256 tokenId) | cancelWithdrawalRequest(uint256 tokenId) | resetVotesAndBeginWithdrawal(uint256 tokenId) | merge(uint256 fromTokenId, uint256 toTokenId) | split(uint256 tokenId, uint256 amount)→uint256 newTokenId | locked(uint256 tokenId)→(uint256 amount, uint256 start) | votingPower(uint256 tokenId)→uint256",
       vault: "deposit(uint256 assets, address receiver)→uint256 shares | redeem(uint256 shares, address receiver, address owner)→uint256 assets | convertToShares(uint256 assets)→uint256 | convertToAssets(uint256 shares)→uint256",
-      gaugeVoter: "vote(uint256 tokenId, (address gauge, uint256 weight)[]) | reset(uint256 tokenId) | getAllGauges()→address[] | getActiveGauges()→address[]",
+      gaugeVoter: "vote(uint256 tokenId, (address gauge, uint256 weight)[]) | reset(uint256 tokenId) | getAllGauges()→address[] | gauges(address)→bool | gaugeVotes(address)→uint256 | totalVotingPowerCast()→uint256 — NOTE: gauge addresses ARE pool addresses (token0, token1, fee callable directly)",
       token: "transfer(address to, uint256 amount)→bool | approve(address spender, uint256 amount)→bool",
     },
     exitFee: "fetched live from ExitQueue contract — see exitParams in response",

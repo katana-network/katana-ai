@@ -15,7 +15,10 @@ export function getClient(network: NetworkName): PublicClient {
       chain,
       transport: http(rpcUrl),
       batch: {
-        multicall: true,
+        multicall: {
+          batchSize: 50,
+          wait: 10,
+        },
       },
     });
   }
