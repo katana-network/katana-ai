@@ -1,7 +1,7 @@
 ---
 name: lending
 description: Activate when the user asks about lending, borrowing, Morpho markets, vaults, positions, leverage, looping strategies, or yield farming on Katana Network.
-allowed-tools: list_morpho_markets, list_morpho_vaults, get_morpho_markets, get_morpho_position, analyze_loop_strategy, build_morpho_supply, build_morpho_withdraw, build_morpho_borrow, build_morpho_authorize, build_morpho_loop, build_morpho_vault_deposit, build_approve, get_token_prices
+allowed-tools: list_morpho_markets, list_morpho_vaults, get_morpho_markets, get_morpho_position, get_morpho_vault_detail, analyze_loop_strategy, build_morpho_supply, build_morpho_withdraw, build_morpho_borrow, build_morpho_authorize, build_morpho_loop, build_morpho_vault_deposit, build_morpho_vault_withdraw, build_approve, get_token_prices
 model: opus
 license: MIT
 metadata:
@@ -74,6 +74,15 @@ Check a user's position in a specific market.
 
 Returns: supply shares/amount, borrow shares/amount, collateral amount, and health factor. **If health factor < 1.0, the position is liquidatable.**
 
+#### get_morpho_vault_detail
+
+Get detailed breakdown of a MetaMorpho vault's market allocations. Uses the Morpho Blue GraphQL API (`https://blue-api.morpho.org/graphql`) for rich pre-aggregated data with automatic RPC fallback.
+
+- `vault` (required): vault address (from `list_morpho_vaults`)
+- `network`: `"mainnet"` | `"testnet"`
+
+Returns: vault metadata (name, TVL, fee, APY), per-market allocation breakdown (vault supply, supply cap, market utilization, available liquidity), and aggregate withdrawal liquidity (how much of the vault's TVL is immediately withdrawable). Essential for risk analysis and understanding vault composition.
+
 ### Lending & Borrowing
 
 #### build_morpho_supply
@@ -110,6 +119,19 @@ Build an unsigned transaction to borrow assets.
 - `network`: `"mainnet"` | `"testnet"`
 
 Requires sufficient collateral already deposited. The LLTV constrains maximum borrow. **Check health factor after borrowing.**
+
+#### build_morpho_vault_withdraw
+
+Build an unsigned transaction to withdraw from a MetaMorpho vault.
+
+- `vault` (required): vault address
+- `amount` (required): amount to withdraw or redeem (human-readable)
+- `mode`: `"withdraw"` (specify asset amount to receive) or `"redeem"` (specify shares to burn). Default: `"withdraw"`
+- `receiver` (required): address to receive the withdrawn assets
+- `owner` (required): address that owns the vault shares
+- `network`: `"mainnet"` | `"testnet"`
+
+Returns: unsigned tx, preview of shares burned / assets received, max withdrawable amount. Warns if requested amount exceeds available liquidity.
 
 ### Leverage Loops
 
@@ -162,8 +184,18 @@ Returns: prerequisites (authorization + approval status), unsigned tx, and posit
 
 ### Passive Vault Deposit
 1. `list_morpho_vaults` — find vaults with best TVL and fee structure
-2. `build_approve` — approve the vault address to spend the underlying asset
-3. `build_morpho_vault_deposit` — build the deposit tx (returns preview of shares received)
+2. `get_morpho_vault_detail` — inspect vault allocations, market utilization, and withdrawal liquidity before depositing
+3. `build_approve` — approve the vault address to spend the underlying asset
+4. `build_morpho_vault_deposit` — build the deposit tx (returns preview of shares received)
+
+### Vault Withdrawal
+1. `get_morpho_vault_detail` — check withdrawal liquidity (some markets may have high utilization locking funds)
+2. `build_morpho_vault_withdraw` — build the withdrawal tx (withdraw by asset amount or redeem by shares)
+
+### Vault Risk Analysis
+1. `get_morpho_vault_detail` — inspect per-market allocations, utilization, and withdrawal liquidity
+2. `get_pools` (from dex tools) — check DEX exit liquidity for each collateral token vs the loan token. If a collateral token has no Sushi pool or thin liquidity, liquidations may be difficult.
+3. `get_swap_quote` (from dex tools) — estimate slippage for liquidation-sized trades to assess real exit costs
 
 ### Leverage Loop (5 Steps)
 1. `list_morpho_markets` — find a suitable market (good LLTV, sufficient liquidity)
@@ -199,9 +231,18 @@ Returns: prerequisites (authorization + approval status), unsigned tx, and posit
 - **Truncated or malformed market IDs.** Market IDs must be exactly 66 characters (`0x` + 64 hex digits). A shorter string will fail with a viem bytes size mismatch error. Always copy the full ID from `list_morpho_markets` output.
 - **Calling market-specific tools in parallel before having the market ID.** Use `list_morpho_markets` first, then pass the returned ID to `analyze_loop_strategy` or `build_morpho_loop`. Do not guess or construct market IDs.
 
+## Data Sources
+
+The MCP server uses two complementary data sources for Morpho data:
+
+1. **Morpho Blue GraphQL API** (`https://blue-api.morpho.org/graphql`) — Pre-aggregated vault data including APY, allocations, utilization breakdowns. Used by `get_morpho_vault_detail` as the primary source for rich vault analysis data.
+2. **Katana RPC** (`https://rpc.katana.network/`) — Direct on-chain reads via viem. Used by all tools as the primary source for market data, positions, and transaction building. Also serves as automatic fallback when the GraphQL API is unavailable.
+
+The SushiSwap DEX tools provide additional on-chain data for swap quotes, pool discovery, and liquidity analysis via the Sushi V3/V2 router contracts.
+
 ## Cross-References
 
 - **wallet-manager**: `build_approve` for Morpho Core or Bundler3 approvals, `get_balances` to check token balances
-- **dex**: Sushi V3 provides the swap leg inside leverage loops. Use `get_swap_quote` to preview swap rates independently.
+- **dex**: Sushi V3 provides the swap leg inside leverage loops. Use `get_swap_quote` to preview swap rates independently. Use `get_pools` to check DEX exit liquidity for vault collateral tokens — essential for assessing liquidation risk.
 - **merkl**: `get_merkl_opportunities` with `protocol: "morpho"` to check reward incentives on Morpho markets/vaults
 - **analytics**: `get_token_prices` for USD position values, `get_gas_price` for cost estimates on complex transactions

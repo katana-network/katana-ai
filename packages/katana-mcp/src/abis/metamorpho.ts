@@ -160,6 +160,31 @@ export const metaMorphoAbi = [
   },
   {
     type: "function",
+    name: "supplyQueue",
+    stateMutability: "view",
+    inputs: [{ name: "index", type: "uint256" }],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+  {
+    type: "function",
+    name: "withdrawQueue",
+    stateMutability: "view",
+    inputs: [{ name: "index", type: "uint256" }],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+  {
+    type: "function",
+    name: "config",
+    stateMutability: "view",
+    inputs: [{ name: "id", type: "bytes32" }],
+    outputs: [
+      { name: "cap", type: "uint184" },
+      { name: "enabled", type: "bool" },
+      { name: "removableAt", type: "uint64" },
+    ],
+  },
+  {
+    type: "function",
     name: "curator",
     stateMutability: "view",
     inputs: [],
@@ -178,6 +203,20 @@ export const metaMorphoAbi = [
     stateMutability: "view",
     inputs: [],
     outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "timelock",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "guardian",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
   },
 ] as const;
 

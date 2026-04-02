@@ -150,6 +150,17 @@ Always show the user: expected output amount, minimum output (after slippage), a
 - **Approving the wrong router.** V3 swaps need approval for SwapRouter (`0x4e1d81A3E627b9294532e990109e4c21d217376C`), V3 LP needs PositionManager (`0x2659C6085D26144117D904C46B48B6d180393d27`), V2 uses V2 Router (`0x69cC349932ae18ED406eeB917d79b9b3033fB68E`). Mixing these up means the tx will revert with an allowance error.
 - **Forgetting to approve BOTH tokens for LP.** Adding liquidity (V3 or V2) requires approving both `tokenA` and `tokenB`. Missing one will revert.
 
+## Data Sources
+
+SushiSwap tools interact directly with on-chain contracts via Katana RPC:
+
+- **V3 QuoterV2** — simulates swaps across all fee tiers for accurate quotes with price impact
+- **V3 Factory** — discovers pools for token pairs, checks pool existence and liquidity
+- **V3 Pool contracts** — reads current price, tick, reserves, and tick concentration maps for LP analysis
+- **V2 Factory / V2 Router** — full-range pool discovery and routing
+
+These on-chain reads provide real-time DEX data. Use `get_pools` to check exit liquidity for any token pair (e.g. assessing whether a collateral token can be liquidated efficiently). Use `get_swap_quote` to get real slippage estimates for any trade size.
+
 ## Cross-References
 
 - **wallet-manager**: `build_approve` for router approvals, `get_balances` to check sufficient funds
