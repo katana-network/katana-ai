@@ -93,7 +93,7 @@ The server exposes 44 tools across 6 categories. **If you're an AI agent working
 
 | Tool | What it gives you |
 |------|-------------------|
-| `create_perps_order` | Build orders (market, limit, stop-loss, take-profit) — returns unsigned EIP-712 data |
+| `create_perps_order` | Build orders (market, limit, stop-loss, take-profit) — returns unsigned EIP-712 data. Accepts an optional `builderCode` to earn a fee share on routed order flow |
 | `cancel_perps_order` | Cancel by orderId, market, or all — returns unsigned EIP-712 data |
 | `build_perps_withdraw` | Cross-chain withdrawals (Katana, Ethereum, Arbitrum, Base, etc.) — returns unsigned EIP-712 data |
 | `associate_perps_wallet` | First-time wallet association for API accounts |
@@ -127,7 +127,7 @@ Each skill has a frontmatter header with a `description` field that tells the ag
 | `lending` | Morpho markets, vaults, positions, leverage loops |
 | `merkl` | Reward discovery, yield farming, claiming Merkl rewards |
 | `analytics` | Token prices, gas costs, tx lookup, contract reference |
-| `perps` | Perpetual futures — market data, orders, positions, withdrawals |
+| `perps` | Perpetual futures — market data, orders, positions, withdrawals, and builder codes for building fee-earning perps products |
 
 Skills are registered in [`.claude-plugin/plugin.json`](./packages/katana-mcp/.claude-plugin/plugin.json) and live in `packages/katana-mcp/skills/`.
 
