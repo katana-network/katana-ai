@@ -35,7 +35,7 @@
     "@azure/identity": "^4.13.0",
     "@modelcontextprotocol/inspector": "^0.20.0",
     "@types/node": "^22.13.5",
-    "promptfoo": "^0.120.25",
+    "promptfoo": "^0.121.18",
     "typescript": "^5.7.3"
   },
   "engines": {
