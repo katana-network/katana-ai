@@ -1,6 +1,8 @@
-import { defineChain } from "viem";
+// Explicit `Chain` annotations: viem >= 2.57 infers types TypeScript can no longer
+// name in emitted declarations (TS2742).
+import { defineChain, type Chain } from "viem";
 
-export const katana = defineChain({
+export const katana: Chain = defineChain({
   id: 747474,
   name: "Katana",
   nativeCurrency: {
@@ -23,7 +25,7 @@ export const katana = defineChain({
   },
 });
 
-export const bokuto = defineChain({
+export const bokuto: Chain = defineChain({
   id: 737373,
   name: "Bokuto",
   nativeCurrency: {
@@ -43,6 +45,6 @@ export const bokuto = defineChain({
 
 export type NetworkName = "mainnet" | "testnet";
 
-export function getChain(network: NetworkName) {
+export function getChain(network: NetworkName): Chain {
   return network === "mainnet" ? katana : bokuto;
 }
