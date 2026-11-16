@@ -268,7 +268,7 @@ tests:
       - type: javascript
         value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.submitted === false && o.eip712 !== undefined && o.eip712.domain.name === 'KatanaPerps'"
       - type: javascript
-        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.domain.chainId === 747474 && o.eip712.types !== undefined && o.eip712.value !== undefined"
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.domain.chainId === 747474 && o.eip712.domain.version === '2.0.0' && o.eip712.domain.verifyingContract.toLowerCase() === '0x62230cea619f734cc215bb8074bbf07be4eb633e' && o.eip712.types !== undefined && o.eip712.value !== undefined"
 
   - description: "create_perps_order — market buy has correct enum values (type=0, side=0)"
     vars:
@@ -535,7 +535,7 @@ tests:
       prompt: '{"tool": "create_perps_order", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "market": "ETH-USD", "type": "market", "side": "buy", "quantity": "1.00000000", "network": "testnet"}}'
     assert:
       - type: javascript
-        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.domain.chainId === 737373 && o.eip712.domain.version === '1.0.0-sandbox' && o.eip712.domain.name === 'KatanaPerps'"
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.domain.chainId === 737373 && o.eip712.domain.version === '2.0.0-sandbox' && o.eip712.domain.name === 'KatanaPerps'"
 
   - description: "cancel_perps_order — testnet uses correct domain"
     vars:
@@ -555,7 +555,7 @@ tests:
   # ║  build_perps_deposit                                                       ║
   # ╚══════════════════════════════════════════════════════════════════════════════╝
 
-  - description: "build_perps_deposit — targets Exchange contract on mainnet"
+  - description: "build_perps_deposit — targets Exchange_v2 on mainnet with deposit(uint256,address) in 6-decimal units"
     vars:
       prompt: '{"tool": "build_perps_deposit", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "quantity": "1000", "network": "mainnet"}}'
     assert:
@@ -563,9 +563,11 @@ tests:
       - type: javascript
         value: |
           const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
-          return o.to.toLowerCase() === '0x835ba5b1b202773a94daaa07168b26b22584637a'
+          return o.to.toLowerCase() === '0x62230cea619f734cc215bb8074bbf07be4eb633e'
             && o.chainId === 747474
-            && o.data && o.data.startsWith('0x');
+            && o.data.toLowerCase().startsWith('0x6e553f65')
+            && BigInt('0x' + o.data.slice(10, 74)) === 1000000000n
+            && o.quantityInAssetUnits === '1000000000';
 
   - description: "build_perps_deposit — testnet targets testnet Exchange contract"
     vars:
@@ -575,7 +577,7 @@ tests:
       - type: javascript
         value: |
           const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
-          return o.to.toLowerCase() === '0xce3765616b9e354e64530875f492dc4dfddF2118'.toLowerCase()
+          return o.to.toLowerCase() === '0x92d3072dde1ad3e9b7895500f504aa5e664e71d3'
             && o.chainId === 737373;
 
   - description: "associate_perps_wallet — testnet uses correct domain"
@@ -583,4 +585,4 @@ tests:
       prompt: '{"tool": "associate_perps_wallet", "args": {"wallet": "0xA71C4aeeAabBBB8D2910F41C2ca3964b81F7310d", "network": "testnet"}}'
     assert:
       - type: javascript
-        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.domain.chainId === 737373 && o.eip712.domain.version === '1.0.0-sandbox'"
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.eip712.domain.chainId === 737373 && o.eip712.domain.version === '2.0.0-sandbox'"

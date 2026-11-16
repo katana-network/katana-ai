@@ -10,7 +10,7 @@ export function registerBuildVote(server: McpServer) {
     "build_kat_vote",
     {
       description:
-        "Build an unsigned transaction to vote on gauges with a vKAT position. Directs KAT emission incentives to liquidity pools. Weights are in basis points (10000 = 100%). Votes persist across epochs until changed or reset. Only vKAT holders can vote directly — avKAT holders' votes are managed by the CompoundStrategy.",
+        "SUNSET — gauge voting and vote incentives ended November 17, 2026; LP incentives are now allocated by the Katana Foundation. Do not use for new activity. Builds an unsigned transaction to vote on gauges with a legacy vKAT position. Weights are in basis points (10000 = 100%).",
       inputSchema: {
         tokenId: z
           .string()

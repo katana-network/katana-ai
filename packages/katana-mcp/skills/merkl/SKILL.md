@@ -15,9 +15,9 @@ Discover incentivized DeFi opportunities and claim reward tokens distributed by 
 
 ## How Merkl Works
 
-Merkl distributes extra reward tokens (KAT, MORPHO, SUSHI, etc.) to users who participate in DeFi on Katana — supplying to Morpho, providing Sushi LP, borrowing, or holding tokens.
+Merkl distributes extra reward tokens (KAT, MORPHO, SUSHI, etc.) to users who participate in DeFi on Katana — supplying to Morpho, providing Katana Swap (Sushi) LP, borrowing, or holding tokens.
 
-- **Campaigns** target specific actions: POOL (Sushi LP), LEND (Morpho supply/vaults), BORROW (Morpho borrow), HOLD (token holding), DROP (airdrops)
+- **Campaigns** target specific actions: POOL (Katana Swap / Sushi LP), LEND (Morpho supply/vaults), BORROW (Morpho borrow), HOLD (token holding), DROP (airdrops)
 - Rewards are computed **offchain every ~2 hours** based on user activity snapshots
 - Merkle roots are pushed **onchain every ~8 hours** — only then can users claim
 - Claiming submits a merkle proof to the Distributor contract (`0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae`)
@@ -89,6 +89,6 @@ Fetches fresh merkle proofs from the Merkl API and encodes a `claim()` call. Gas
 ## Cross-References
 
 - **lending**: supply to Morpho markets/vaults to earn LEND rewards
-- **dex**: provide Sushi LP to earn POOL rewards
+- **dex**: provide Katana Swap LP to earn POOL rewards (KAT LP incentives are allocated by the Katana Foundation since the November 17, 2026 gauge-voting sunset)
 - **analytics**: `get_token_prices` to value reward tokens in USD
 - **wallet-manager**: `get_balances` to check reward token balances after claiming

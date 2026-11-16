@@ -40,6 +40,14 @@ tests:
       - type: javascript
         value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.bestQuote && parseFloat(o.bestQuote.amountOut) > 0"
 
+  - description: "get_swap_quote — mixed-case symbol (avKAT) resolves"
+    vars:
+      prompt: '{"tool": "get_swap_quote", "args": {"tokenIn": "avKAT", "tokenOut": "KAT", "amountIn": "100", "network": "mainnet"}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); !o.error && o.tokenIn.address.toLowerCase() === '0x7231dbacdfc968e07656d12389ab20de82fbfceb'"
+
   - description: "get_swap_quote — unknown token returns error"
     vars:
       prompt: '{"tool": "get_swap_quote", "args": {"tokenIn": "FAKECOIN", "tokenOut": "WETH", "amountIn": "100", "network": "mainnet"}}'

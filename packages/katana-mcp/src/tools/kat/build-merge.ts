@@ -10,7 +10,7 @@ export function registerBuildMerge(server: McpServer) {
     "build_kat_merge",
     {
       description:
-        "Build an unsigned transaction to merge two vKAT positions into one. The 'from' NFT is burned and its KAT is added to the 'to' position. Both positions must have their votes reset first.",
+        "Legacy vKAT lock management (vKAT staking was sunset November 17, 2026; vKAT earns no rewards). Build an unsigned transaction to merge two vKAT positions into one. The 'from' NFT is burned and its KAT is added to the 'to' position. Both positions must have their votes reset first.",
       inputSchema: {
         fromTokenId: z
           .string()

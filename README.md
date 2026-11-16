@@ -6,7 +6,7 @@ Agent skills for [Katana Network](https://katana.network) — a DeFi-focused L2 
 
 | Package | Description |
 |---------|-------------|
-| [`katana-mcp`](./packages/katana-mcp) | MCP server — wallet, Sushi DEX, Morpho lending, Perps trading, analytics, Merkl rewards
+| [`katana-mcp`](./packages/katana-mcp) | MCP server — wallet, Katana Swap (Sushi) DEX, Morpho lending, KAT staking (avKAT), Perps trading, analytics, Merkl rewards
 
 ## Quick Start
 
@@ -24,6 +24,14 @@ npm run inspect
 ### Connect to Claude Code
 ```bash
 claude mcp add-json katana '{"type":"stdio","command":"node","args":["/absolute/path/to/packages/katana-mcp/dist/server.js","--stdio"]}'
+```
+
+### RPC endpoints
+Mainnet reads use `https://rpc.katana.network/` and automatically fall back to `https://rpc.katanarpc.com/` if a request fails. Both are public, keyless endpoints and are rate limited under heavy load (for example, the full eval suite or a busy hosted server). To use your own RPC, such as a keyed Conduit endpoint, set it as the primary; the public endpoints stay as backups:
+
+```bash
+KATANA_RPC_URL=https://your-rpc.example/ npm run start:http
+BOKUTO_RPC_URL=https://your-testnet-rpc.example/ npm run start:http   # testnet
 ```
 
 ### Run as remote server
@@ -49,7 +57,7 @@ The server exposes 44 tools across 6 categories. **If you're an AI agent working
 
 | Tool | What it gives you |
 |------|-------------------|
-| `get_contract_reference` | All verified contract addresses — SushiSwap, Morpho, Merkl, tokens, infra. **Source of truth.** |
+| `get_contract_reference` | All verified contract addresses — Katana Swap (Sushi), Morpho, Merkl, KAT, tokens, infra. **Source of truth.** |
 | `get_balances` | Wallet token balances across all supported tokens |
 | `get_token_prices` | Spot prices via on-chain Sushi V3 pools |
 | `get_pools` | Live pool data — TVL, reserves, price, tick concentration |
@@ -123,11 +131,12 @@ Each skill has a frontmatter header with a `description` field that tells the ag
 | Skill | Activates when |
 |-------|---------------|
 | `wallet-manager` | Balances, transfers, approvals, wrap/unwrap ETH |
-| `dex` | Token swaps, quotes, pool analysis, LP provision on SushiSwap |
+| `dex` | Token swaps, quotes, pool analysis, LP provision on Katana Swap (built on Sushi) |
 | `lending` | Morpho markets, vaults, positions, leverage loops |
 | `merkl` | Reward discovery, yield farming, claiming Merkl rewards |
 | `analytics` | Token prices, gas costs, tx lookup, contract reference |
 | `perps` | Perpetual futures — market data, orders, positions, withdrawals, and builder codes for building fee-earning perps products |
+| `kat` | KAT staking with avKAT, converting vKAT to avKAT, unstaking and exits (7-day cooldown, exit fees) |
 
 Skills are registered in [`.claude-plugin/plugin.json`](./packages/katana-mcp/.claude-plugin/plugin.json) and live in `packages/katana-mcp/skills/`.
 

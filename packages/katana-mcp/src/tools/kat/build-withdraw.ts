@@ -11,7 +11,7 @@ export function registerBuildWithdraw(server: McpServer) {
     "build_kat_withdraw",
     {
       description:
-        "Build an unsigned transaction to complete a vKAT withdrawal after the cooldown period has started. Returns KAT minus the exit fee. The fee depends on how long the user waited — read from on-chain ExitQueue contract. Must call build_kat_begin_withdrawal first.",
+        "Build an unsigned transaction to complete an exit and receive KAT for a vKAT NFT whose cooldown has started (final step of unstaking avKAT or exiting a legacy vKAT position). Returns KAT minus the exit fee, which depends on how long the user waited — parameters are read live from the on-chain ExitQueue and returned as exitParams. Must call build_kat_begin_withdrawal first.",
       inputSchema: {
         tokenId: z
           .string()

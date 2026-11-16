@@ -48,7 +48,7 @@ export function registerCancelPerpsOrder(server: McpServer) {
       try {
         const net = network as NetworkName;
         const nonce = generateNonce();
-        const domain = getDomain(net);
+        const domain = await getDomain(net);
 
         const parameters: Record<string, unknown> = { nonce, wallet };
 

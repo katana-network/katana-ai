@@ -10,7 +10,7 @@ export function registerBuildConvertToVault(server: McpServer) {
     "build_kat_convert_to_vault",
     {
       description:
-        "Build an unsigned transaction to convert a vKAT NFT into avKAT vault shares. This is a one-way operation — the vKAT NFT is consumed and merged into the vault's master position. User must approve the avKAT vault as an NFT operator first (setApprovalForAll on the NFT Lock contract).",
+        "Build an unsigned transaction to convert a vKAT NFT into avKAT vault shares (vKAT was sunset November 17, 2026 and earns no rewards; conversion has no deadline). Conversion is at the current exchange rate, so the user receives fewer avKAT than the KAT in the lock. This is a one-way operation — the vKAT NFT is consumed and merged into the vault's master position. User must approve the avKAT vault as an NFT operator first (setApprovalForAll on the NFT Lock contract).",
       inputSchema: {
         tokenId: z
           .string()

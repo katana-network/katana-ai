@@ -10,7 +10,7 @@ export function registerBuildResetVotes(server: McpServer) {
     "build_kat_reset_votes",
     {
       description:
-        "Build an unsigned transaction to reset all gauge votes for a vKAT position. Required before beginning a withdrawal — a vKAT position with active votes cannot be withdrawn. Alternatively, use build_kat_begin_withdrawal with resetVotes=true to do both atomically.",
+        "Build an unsigned transaction to reset all gauge votes for a legacy vKAT position (gauge voting was sunset November 17, 2026). Only needed when a pre-sunset vKAT NFT still has active votes, which block withdrawal. Alternatively, use build_kat_begin_withdrawal with resetVotes=true to do both atomically.",
       inputSchema: {
         tokenId: z
           .string()

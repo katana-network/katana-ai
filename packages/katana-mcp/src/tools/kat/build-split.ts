@@ -10,7 +10,7 @@ export function registerBuildSplit(server: McpServer) {
     "build_kat_split",
     {
       description:
-        "Build an unsigned transaction to split a vKAT position into two. Creates a new vKAT NFT with the specified amount of KAT, reducing the original position accordingly. The original position must have its votes reset first.",
+        "Legacy vKAT lock management (vKAT staking was sunset November 17, 2026; vKAT earns no rewards). Build an unsigned transaction to split a vKAT position into two. Creates a new vKAT NFT with the specified amount of KAT, reducing the original position accordingly. The original position must have its votes reset first.",
       inputSchema: {
         tokenId: z
           .string()

@@ -8,7 +8,7 @@ This project has a `katana-remote` MCP server connected with 27 tools for Katana
 
 | Tool | What it gives you |
 |------|-------------------|
-| `get_contract_reference` | All verified contract addresses — SushiSwap, Morpho, Merkl, tokens, infra. **This is the source of truth.** |
+| `get_contract_reference` | All verified contract addresses — Katana Swap (Sushi), Morpho, Merkl, KAT, tokens, infra. **This is the source of truth.** |
 | `get_balances` | Wallet token balances across all supported tokens |
 | `get_token_prices` | Spot prices via on-chain Sushi V3 pools |
 | `get_pools` | Live pool data — TVL, reserves, price, tick concentration |

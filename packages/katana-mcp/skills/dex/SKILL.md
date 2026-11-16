@@ -1,6 +1,6 @@
 ---
 name: dex
-description: Activate when the user wants to swap tokens, get trade quotes, check pool liquidity, or provide liquidity on SushiSwap on Katana Network.
+description: Activate when the user wants to swap tokens, get trade quotes, check pool liquidity, or provide liquidity on Katana Swap (built on Sushi / SushiSwap) on Katana Network.
 allowed-tools: get_swap_quote, build_swap, get_pools, build_add_liquidity_v3, build_add_liquidity_v2, build_approve, get_token_prices
 model: opus
 license: MIT
@@ -9,13 +9,13 @@ metadata:
   version: '1.0.0'
 ---
 
-# Swap Planner — SushiSwap on Katana
+# Swap Planner — Katana Swap (built on Sushi)
 
-Token swaps, trade quoting, pool analysis, and liquidity provision on SushiSwap (V3 + V2) on Katana Network.
+Token swaps, trade quoting, pool analysis, and liquidity provision on Katana Swap (V3 + V2) on Katana Network. Katana Swap is Katana's DEX, built on Sushi's deployment on Katana — the contracts are Sushi contracts, so "Sushi", "SushiSwap" and "Katana Swap" all refer to the same venue.
 
-## SushiSwap Overview
+## Katana Swap Overview
 
-SushiSwap on Katana offers both concentrated liquidity (V3) and full-range (V2) pools. V3 is generally preferred for better capital efficiency and tighter spreads.
+Katana Swap offers both concentrated liquidity (V3) and full-range (V2) pools. V3 is generally preferred for better capital efficiency and tighter spreads.
 
 ### V3 Fee Tiers
 
@@ -65,7 +65,7 @@ Build an unsigned swap transaction.
 
 ### get_pools
 
-Deep analysis of Sushi V3 pools for a token pair.
+Deep analysis of Katana Swap (Sushi V3) pools for a token pair.
 
 - `tokenA` (required): first token — symbol or address
 - `tokenB` (required): second token — symbol or address
@@ -152,7 +152,7 @@ Always show the user: expected output amount, minimum output (after slippage), a
 
 ## Data Sources
 
-SushiSwap tools interact directly with on-chain contracts via Katana RPC:
+Katana Swap tools interact directly with on-chain contracts via Katana RPC:
 
 - **V3 QuoterV2** — simulates swaps across all fee tiers for accurate quotes with price impact
 - **V3 Factory** — discovers pools for token pairs, checks pool existence and liquidity
@@ -165,5 +165,5 @@ These on-chain reads provide real-time DEX data. Use `get_pools` to check exit l
 
 - **wallet-manager**: `build_approve` for router approvals, `get_balances` to check sufficient funds
 - **analytics**: `get_token_prices` to show USD values, `get_gas_price` for cost estimates
-- **merkl**: `get_merkl_opportunities` with `protocol: "sushi-swap"` to check if a pool has reward incentives before adding LP
-- **lending**: swap tools are used internally by Morpho leverage loops (Sushi provides the swap leg)
+- **merkl**: `get_merkl_opportunities` with `protocol: "sushi-swap"` to check if a pool has reward incentives before adding LP. KAT LP incentives are allocated by the Katana Foundation (gauge voting was sunset November 17, 2026); only in-range V3 liquidity earns fees and incentives
+- **lending**: swap tools are used internally by Morpho leverage loops (Katana Swap provides the swap leg)
