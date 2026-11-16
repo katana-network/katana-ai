@@ -89,6 +89,8 @@ MAX_FEE_BPS = 2500   MIN_FEE_BPS = 0   COOLDOWN = 604800 s (7 days)   BPS_DENOMI
 
 **The on-chain ExitQueue is the source of truth.** Its values are readable via `cooldown()`, `feePercent()` (max, bps) and `minFeePercent()` (min, bps), and are returned live as `exitFee` by `get_contract_reference` and as `exitParams` by `build_kat_begin_withdrawal` / `build_kat_withdraw`. Before quoting a fee or cooldown to a user, check the live values. If they differ from the schedule above (for example around the November 17, 2026 transition, or after a later parameter change), tell the user and compute the fee from the live values using the same linear formula.
 
+**Each exit keeps the terms it was queued with.** `queue(tokenId)` stores the cooldown and fee parameters in effect when `beginWithdrawal` ran. An exit started under older terms (e.g. a 60-day cooldown with a 2.5% minimum fee) is not moved onto the new schedule — for a queued exit, use `calculateFee(tokenId)` rather than the table above.
+
 | Exit path | Time | Fee |
 |---|---|---|
 | avKAT → full cooldown | 7 days | 0% |
@@ -116,7 +118,7 @@ MAX_FEE_BPS = 2500   MIN_FEE_BPS = 0   COOLDOWN = 604800 s (7 days)   BPS_DENOMI
 1. **Redeem to NFT:** `build_kat_withdraw_vault` with `amount`, `owner`, and `amountIn: "avKAT"` (default) or `"KAT"`. It calls `avKATVault.withdrawTokenId(assets, receiver, owner)` — the first argument is the **KAT (assets) amount**, not avKAT shares; the tool converts for you. This burns avKAT and mints a **new** vKAT NFT. Get the new token ID from the tx logs or `get_kat_locks`.
    - **Minimum:** the KAT value must be at least the VotingEscrow `minDeposit()` (230 KAT at time of writing; the tool reads it live). Smaller amounts revert with `AmountTooSmall()` — for small balances the only exit is a DEX swap.
 2. `build_kat_begin_withdrawal` with that `tokenId` — starts the 7-day cooldown
-3. Wait. Check progress with `ExitQueue.getQueueEntry(tokenId)` → `(holder, queuedAt, cooldown)`; cooldown ends at `queuedAt + cooldown`
+3. Wait. Track it with `ExitQueue.queue(tokenId)` (entry incl. the cooldown and fee terms locked at queue time), `canExit(tokenId)` and `calculateFee(tokenId)` (fee in KAT if withdrawn now)
 4. `build_kat_withdraw` — receive KAT (0% fee after 7 days; earlier = fee per schedule)
 
 For an **instant exit through the vault** (25% fee), do steps 2 and 4 back to back. Always tell the user the fee in KAT before they choose this.
@@ -169,11 +171,14 @@ minDeposit() → uint256                          // minimum KAT per lock (230 K
 
 ### Exit Queue
 ```
-getQueueEntry(uint256 tokenId) → (address holder, uint256 queuedAt, uint256 cooldown)
-cooldown() → uint256          // seconds
-feePercent() → uint256        // max fee, bps
-minFeePercent() → uint256     // min fee, bps
+cooldown() → uint256          // seconds, for new exits
+feePercent() → uint256        // max fee, bps, for new exits
+minFeePercent() → uint256     // min fee, bps, for new exits
+queue(uint256 tokenId)        // exit entry: holder, queued timestamp, and the cooldown/fee params locked at queue time
+canExit(uint256 tokenId) → bool
+calculateFee(uint256 tokenId) → uint256   // fee in KAT (wei) if withdrawn now
 ```
+There is **no** `getQueueEntry` function — calls to it revert (the katana-docs unstake guide shows it, but it doesn't exist on-chain).
 
 ### NFT Lock (ERC-721)
 ```
@@ -189,6 +194,8 @@ setApprovalForAll(address operator, bool approved)
 - **Using `redeem()` to unstake.** The documented unstake path is `withdrawTokenId` → `beginWithdrawal` → wait → `withdraw` (`build_kat_withdraw_vault` → `build_kat_begin_withdrawal` → `build_kat_withdraw`).
 - **Passing avKAT shares to `withdrawTokenId`.** Its first argument is the KAT (assets) amount. Passing a share count silently unstakes less than intended.
 - **Unstaking less than the minimum.** Unstaking under `minDeposit()` (230 KAT at time of writing) of KAT value through the vault reverts with `AmountTooSmall()`. Swap on the DEX instead.
+- **Calling `getQueueEntry`.** It doesn't exist on the ExitQueue. Use `queue`, `canExit` and `calculateFee`.
+- **Quoting the new schedule for an exit already in progress.** Each exit keeps the terms it was queued with — use `calculateFee(tokenId)`.
 - **Not mentioning the fee-free option.** Exiting before 7 days costs up to 25%. Always state the fee in KAT and that waiting the full cooldown is free.
 - **Calling a DEX exit "free".** There's no protocol fee, but the swap is at the market rate and can be below the redeemable KAT value due to fees, price impact and thin liquidity. Quote first.
 - **Leaving a cancelled exit as vKAT.** A cancelled withdrawal leaves a vKAT NFT that earns nothing — redeposit it with `depositTokenId`.
