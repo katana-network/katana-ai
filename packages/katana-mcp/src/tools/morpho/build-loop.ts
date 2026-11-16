@@ -17,11 +17,12 @@ import {
   type NetworkName,
 } from "../../config/contracts.js";
 import { morphoAbi } from "../../abis/morpho.js";
+import { getMarketParams } from "./market-params.js";
 import { erc20Abi } from "../../abis/erc20.js";
 import { bundler3Abi, callComponents } from "../../abis/bundler3.js";
 import { generalAdapter1Abi } from "../../abis/general-adapter1.js";
 import { sushiV3RouterAbi } from "../../abis/sushi-v3-router.js";
-import { getBestQuote } from "./swap-utils.js";
+import { getBestQuote, quoteSafe } from "./swap-utils.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -80,7 +81,7 @@ export function registerBuildLoop(server: McpServer) {
         "Build an atomic leveraged loop transaction using Morpho flashloans + Bundler3. Executes supply → flashloan → swap → supply collateral → borrow in a single transaction. Returns unsigned Bundler3.multicall tx data, prerequisite checks, and position summary. Requires build_morpho_authorize first. NOTE: This tool makes several on-chain reads (market params, token metadata, swap quotes, prerequisite checks) and may take 10-20 seconds to complete. If it times out, try again — the RPC can be slow under load.",
       inputSchema,
     },
-    async ({
+    quoteSafe(async ({
       marketId,
       userAddress,
       amount,
@@ -99,12 +100,7 @@ export function registerBuildLoop(server: McpServer) {
       const id = marketId as `0x${string}`;
 
       // ── 1. Fetch market params + token metadata in one batch ─────
-      const params = await client.readContract({
-        address: morpho,
-        abi: morphoAbi,
-        functionName: "idToMarketParams",
-        args: [id],
-      });
+      const params = await getMarketParams(net, id as `0x${string}`);
 
       const collateralToken = params.collateralToken as Address;
       const loanToken = params.loanToken as Address;
@@ -504,6 +500,6 @@ export function registerBuildLoop(server: McpServer) {
           { type: "text" as const, text: JSON.stringify(response) },
         ],
       };
-    }
+    })
   );
 }

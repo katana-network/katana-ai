@@ -6,10 +6,18 @@ import { MORPHO_CONTRACTS, getTokenByAddress, type NetworkName } from "../../con
 import { metaMorphoAbi } from "../../abis/metamorpho.js";
 import { morphoAbi } from "../../abis/morpho.js";
 import { erc20Abi } from "../../abis/erc20.js";
+import {
+  morphoQuery,
+  useMorphoApi,
+  MorphoApiNotFound,
+  formatWarnings,
+  pct,
+  usd,
+  IMPLAUSIBLE_APY,
+  type ApiWarning,
+} from "./morpho-api.js";
 
-// ─── Morpho Blue GraphQL API ────────────────────────────────────────────────
-const MORPHO_API = "https://blue-api.morpho.org/graphql";
-const KATANA_CHAIN_ID = 747474;
+// ─── Morpho API (Katana only — see morpho-api.ts) ──────────────────────────
 
 const VAULT_DETAIL_QUERY = `
   query VaultDetail($address: String!, $chainId: Int!) {
@@ -17,6 +25,8 @@ const VAULT_DETAIL_QUERY = `
       address
       name
       symbol
+      listed
+      warnings { type level }
       asset {
         address
         symbol
@@ -24,6 +34,7 @@ const VAULT_DETAIL_QUERY = `
       }
       state {
         totalAssets
+        totalAssetsUsd
         fee
         curator
         apy
@@ -81,9 +92,12 @@ interface GqlVaultDetail {
     address: string;
     name: string;
     symbol: string;
+    listed: boolean;
+    warnings: ApiWarning[];
     asset: { address: string; symbol: string; decimals: number };
     state: {
       totalAssets: string;
+      totalAssetsUsd: number | null;
       fee: number;
       curator: string;
       apy: number;
@@ -94,19 +108,97 @@ interface GqlVaultDetail {
 }
 
 async function fetchFromGraphQL(vaultAddress: string) {
-  const res = await fetch(MORPHO_API, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: VAULT_DETAIL_QUERY,
-      variables: { address: vaultAddress, chainId: KATANA_CHAIN_ID },
-    }),
-  });
+  return morphoQuery<GqlVaultDetail>(VAULT_DETAIL_QUERY, { address: vaultAddress });
+}
 
-  if (!res.ok) throw new Error(`Morpho API ${res.status}`);
-  const json = await res.json();
-  if (json.errors?.length) throw new Error(json.errors[0].message);
-  return json.data as GqlVaultDetail;
+// ─── Vault V2 (Morpho API only) ────────────────────────────────────────────
+
+const VAULT_V2_QUERY = `
+  query VaultV2Detail($address: String!, $chainId: Int!) {
+    vaultV2ByAddress(address: $address, chainId: $chainId) {
+      address name symbol listed
+      asset { address symbol decimals }
+      totalAssets totalAssetsUsd liquidity liquidityUsd idleAssets
+      apy netApy performanceFee managementFee
+      curator { address } owner { address }
+      adapters { items { address type assets assetsUsd } }
+      caps { items { type absoluteCap relativeCap allocation } }
+      warnings { type level }
+    }
+  }
+`;
+
+interface GqlVaultV2 {
+  vaultV2ByAddress: {
+    address: string;
+    name: string;
+    symbol: string;
+    listed: boolean;
+    asset: { address: string; symbol: string; decimals: number };
+    totalAssets: string;
+    totalAssetsUsd: number | null;
+    liquidity: string;
+    liquidityUsd: number | null;
+    idleAssets: string;
+    apy: number | null;
+    netApy: number | null;
+    performanceFee: number | null;
+    managementFee: number | null;
+    curator: { address: string } | null;
+    owner: { address: string } | null;
+    adapters: { items: { address: string; type: string; assets: string; assetsUsd: number | null }[] };
+    caps: { items: { type: string; absoluteCap: string; relativeCap: string; allocation: string | number }[] };
+    warnings: ApiWarning[];
+  } | null;
+}
+
+async function fetchVaultV2(vaultAddress: string) {
+  const data = await morphoQuery<GqlVaultV2>(VAULT_V2_QUERY, { address: vaultAddress });
+  const v = data.vaultV2ByAddress;
+  if (!v) return null;
+  const d = v.asset.decimals;
+  const tvl = formatUnits(BigInt(v.totalAssets), d);
+  const liquidity = formatUnits(BigInt(v.liquidity), d);
+  const tvlNum = parseFloat(tvl);
+  const warnings = formatWarnings(v.warnings);
+  if (v.netApy !== null && v.netApy > IMPLAUSIBLE_APY) warnings.push("UNVERIFIED:implausible_apy");
+  return {
+    source: "morpho-api",
+    version: "v2",
+    address: v.address,
+    name: v.name,
+    symbol: v.symbol,
+    asset: v.asset,
+    tvl,
+    tvlUsd: usd(v.totalAssetsUsd),
+    apy: pct(v.apy),
+    netApy: pct(v.netApy),
+    performanceFee: pct(v.performanceFee, 1),
+    managementFee: pct(v.managementFee, 1),
+    curator: v.curator?.address ?? null,
+    owner: v.owner?.address ?? null,
+    listed: v.listed,
+    warnings,
+    withdrawalLiquidity: {
+      totalWithdrawable: liquidity,
+      totalWithdrawableUsd: usd(v.liquidityUsd),
+      percentOfTvl: tvlNum > 0 ? `${((parseFloat(liquidity) / tvlNum) * 100).toFixed(1)}%` : "0%",
+    },
+    idle: formatUnits(BigInt(v.idleAssets), d),
+    adapters: v.adapters.items.map((a) => ({
+      address: a.address,
+      type: a.type,
+      assets: formatUnits(BigInt(a.assets), d),
+      assetsUsd: usd(a.assetsUsd),
+    })),
+    caps: v.caps.items.map((c) => ({
+      type: c.type,
+      absoluteCap: formatUnits(BigInt(c.absoluteCap), d),
+      relativeCap: `${(Number(BigInt(c.relativeCap)) / 1e16).toFixed(1)}%`,
+      allocation: formatUnits(BigInt(c.allocation), d),
+    })),
+    note: "Vault V2 allocates through adapters (e.g. MorphoMarketV1 = Morpho Blue markets) under per-adapter, per-collateral and per-market caps.",
+  };
 }
 
 function formatGqlResult(data: GqlVaultDetail) {
@@ -157,13 +249,20 @@ function formatGqlResult(data: GqlVaultDetail) {
   const tvlNum = parseFloat(tvl);
   const withdrawPct = tvlNum > 0 ? (totalWithdrawable / tvlNum * 100).toFixed(1) : "0";
 
+  const warnings = formatWarnings(v.warnings);
+  if (v.state.netApy !== null && v.state.netApy > IMPLAUSIBLE_APY) warnings.push("UNVERIFIED:implausible_apy");
+
   return {
     source: "morpho-api",
+    version: "v1",
     address: v.address,
     name: v.name,
     symbol: v.symbol,
     asset: v.asset,
     tvl,
+    tvlUsd: usd(v.state.totalAssetsUsd),
+    listed: v.listed,
+    warnings,
     fee: `${(v.state.fee * 100).toFixed(1)}%`,
     apy: v.state.apy !== null ? `${(v.state.apy * 100).toFixed(2)}%` : null,
     netApy: v.state.netApy !== null ? `${(v.state.netApy * 100).toFixed(2)}%` : null,
@@ -317,6 +416,7 @@ async function fetchFromRPC(
 
   return {
     source: "rpc-fallback",
+    version: "v1",
     address: vaultAddress,
     name: name as string,
     symbol: symbol as string,
@@ -343,7 +443,7 @@ const inputSchema = {
   vault: z
     .string()
     .regex(/^0x[a-fA-F0-9]{40}$/, "Must be a valid Ethereum address")
-    .describe("MetaMorpho vault address (from list_morpho_vaults)"),
+    .describe("Morpho vault address — MetaMorpho (v1) or Vault V2 (from list_morpho_vaults)"),
   network: z
     .enum(["mainnet", "testnet"])
     .default("mainnet")
@@ -355,26 +455,36 @@ export function registerGetVaultDetail(server: McpServer) {
     "get_morpho_vault_detail",
     {
       description:
-        "Get detailed breakdown of a MetaMorpho vault's market allocations on Katana. Shows which Morpho Blue markets the vault deploys capital to, how much is allocated to each, supply caps, market utilization, and withdrawal liquidity per market. Uses the Morpho Blue GraphQL API for rich pre-aggregated data (APY, allocations) with automatic RPC fallback. Essential for risk analysis and understanding vault composition.",
+        "Get a detailed breakdown of a Morpho vault on Katana — MetaMorpho (v1) or Vault V2. For v1: which Morpho Blue markets the vault deploys capital to, allocation per market, supply caps, utilization and withdrawal liquidity per market. For V2: adapters, caps, idle assets and withdrawable liquidity. On mainnet uses the Morpho API (Katana only), adding APY, USD values, listing status and risk warnings; falls back to on-chain reads (v1 only) if the API is unavailable, and on testnet. Essential for risk analysis and understanding vault composition.",
       inputSchema,
     },
     async ({ vault, network }) => {
       const net = network as NetworkName;
       const vaultAddr = vault as Address;
 
-      // Try Morpho GraphQL API first (richer data: APY, pre-aggregated)
-      try {
-        const gqlData = await fetchFromGraphQL(vault);
-        const result = formatGqlResult(gqlData);
-
-        if (result) {
-          return {
-            content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
-          };
+      // Morpho API covers Katana mainnet only — testnet goes straight to RPC
+      if (useMorphoApi(net)) {
+        let apiReachable = true;
+        // 1. MetaMorpho (v1)
+        try {
+          const result = formatGqlResult(await fetchFromGraphQL(vault));
+          if (result) {
+            return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+          }
+        } catch (e) {
+          if (!(e instanceof MorphoApiNotFound)) apiReachable = false;
         }
-        // Vault not found in API — fall through to RPC
-      } catch {
-        // API unavailable or errored — fall through to RPC
+        // 2. Not a v1 vault — try Vault V2
+        if (apiReachable) {
+          try {
+            const v2 = await fetchVaultV2(vault);
+            if (v2) {
+              return { content: [{ type: "text" as const, text: JSON.stringify(v2, null, 2) }] };
+            }
+          } catch {
+            // not a V2 either, or API error — fall through to on-chain v1 reads
+          }
+        }
       }
 
       // RPC fallback: read on-chain directly

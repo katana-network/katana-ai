@@ -4,7 +4,52 @@ import { formatUnits, type Address } from "viem";
 import { getClient } from "../../clients.js";
 import { MORPHO_CONTRACTS, type NetworkName } from "../../config/contracts.js";
 import { morphoAbi } from "../../abis/morpho.js";
+import { getMarketParams } from "./market-params.js";
 import { erc20Abi } from "../../abis/erc20.js";
+import { morphoQuery, useMorphoApi, MorphoApiNotFound, usd } from "./morpho-api.js";
+
+interface ApiPosition {
+  marketPosition: {
+    healthFactor: number | null;
+    priceVariationToLiquidationPrice: number | null;
+    state: { collateralUsd: number | null; borrowAssetsUsd: number | null; supplyAssetsUsd: number | null } | null;
+  } | null;
+}
+
+/** Indexed risk metrics from the Morpho API (Katana mainnet). Never throws. */
+async function fetchRisk(marketId: string, user: string) {
+  try {
+    const data = await morphoQuery<ApiPosition>(
+      `query ($user: String!, $market: String!, $chainId: Int!) {
+        marketPosition(userAddress: $user, marketUniqueKey: $market, chainId: $chainId) {
+          healthFactor
+          priceVariationToLiquidationPrice
+          state { collateralUsd borrowAssetsUsd supplyAssetsUsd }
+        }
+      }`,
+      { user, market: marketId }
+    );
+    const pos = data.marketPosition;
+    if (!pos) return { available: false, reason: "no indexed position" };
+    return {
+      available: true,
+      source: "morpho-api",
+      healthFactor: pos.healthFactor,
+      priceDropToLiquidation:
+        pos.priceVariationToLiquidationPrice === null
+          ? null
+          : `${(Math.abs(pos.priceVariationToLiquidationPrice) * 100).toFixed(2)}%`,
+      collateralUsd: usd(pos.state?.collateralUsd),
+      borrowUsd: usd(pos.state?.borrowAssetsUsd),
+      supplyUsd: usd(pos.state?.supplyAssetsUsd),
+    };
+  } catch (e) {
+    return {
+      available: false,
+      reason: e instanceof MorphoApiNotFound ? "no indexed position" : "Morpho API unavailable",
+    };
+  }
+}
 
 const inputSchema = {
   marketId: z
@@ -25,7 +70,7 @@ export function registerGetPosition(server: McpServer) {
     "get_morpho_position",
     {
       description:
-        "Get a user's position in a Morpho Blue market on Katana. Returns supply shares, borrow shares, collateral, and computed health factor. A health factor below 1.0 means the position is liquidatable.",
+        "Get a user's position in a Morpho Blue market on Katana. Balances (supply, borrow, collateral) are read on-chain. On mainnet, risk metrics are added from the Morpho API (Katana only): health factor, the collateral price drop that would trigger liquidation, and USD values. A health factor below 1.0 means the position is liquidatable.",
       inputSchema,
     },
     async ({ marketId, user, network }) => {
@@ -43,12 +88,7 @@ export function registerGetPosition(server: McpServer) {
           functionName: "position",
           args: [id, userAddr],
         }),
-        client.readContract({
-          address: morpho,
-          abi: morphoAbi,
-          functionName: "idToMarketParams",
-          args: [id],
-        }),
+        getMarketParams(net, id as `0x${string}`),
         client.readContract({
           address: morpho,
           abi: morphoAbi,
@@ -91,6 +131,8 @@ export function registerGetPosition(server: McpServer) {
       const lltv = params.lltv;
       const hasDebt = borrowAssets > 0n;
 
+      const risk = useMorphoApi(net) && hasDebt ? await fetchRisk(marketId, user) : null;
+
       const response = {
         network,
         marketId,
@@ -105,9 +147,12 @@ export function registerGetPosition(server: McpServer) {
           borrowAssets: formatUnits(borrowAssets, loanDecimals),
           collateral: formatUnits(BigInt(collateral), collateralDecimals),
         },
-        note: hasDebt
-          ? "Position has outstanding debt. Health factor depends on oracle price — check the Morpho UI for precise liquidation risk."
-          : "No outstanding debt.",
+        ...(risk ? { risk } : {}),
+        note: !hasDebt
+          ? "No outstanding debt."
+          : risk && "healthFactor" in risk
+            ? "Balances are on-chain; risk metrics are indexed by the Morpho API and can lag by a few blocks. Below 1.0 the position is liquidatable — treat anything under ~1.1 as urgent."
+            : "Position has outstanding debt. Health factor depends on oracle price and could not be fetched — check the Morpho UI for precise liquidation risk.",
       };
 
       return {

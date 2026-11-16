@@ -1,5 +1,10 @@
 // Shared swap quote helpers — used by analyze-loop.ts and build-loop.ts
-import type { Address } from "viem";
+import {
+  BaseError,
+  ContractFunctionRevertedError,
+  ExecutionRevertedError,
+  type Address,
+} from "viem";
 import { getClient } from "../../clients.js";
 import { MAINNET_TOKENS, SUSHI_CONTRACTS } from "../../config/contracts.js";
 import { sushiV3QuoterAbi } from "../../abis/sushi-v3-quoter.js";
@@ -19,11 +24,67 @@ export interface SwapQuote {
   fee: number;
 }
 
+/**
+ * Thrown when no route could be quoted because the RPC failed (rate limit,
+ * timeout, network) — as opposed to every route reverting, which genuinely
+ * means there is no liquidity. Callers must not report this as "no liquidity".
+ */
+export class QuoteUnavailableError extends Error {
+  constructor() {
+    super(
+      "Swap quotes are temporarily unavailable: the Katana RPC rejected or timed out the quote requests (often a public-RPC rate limit). This is not a liquidity problem — retry in a minute, or set KATANA_RPC_URL to a keyed RPC endpoint."
+    );
+    this.name = "QuoteUnavailableError";
+  }
+}
+
+/**
+ * Wrap a tool handler so a QuoteUnavailableError becomes a clear, retryable
+ * JSON error instead of an unhandled exception.
+ */
+export function quoteSafe<A extends { network?: string }, R>(
+  handler: (args: A) => Promise<R>
+): (args: A) => Promise<R | { content: { type: "text"; text: string }[]; isError: true }> {
+  return async (args: A) => {
+    try {
+      return await handler(args);
+    } catch (e) {
+      if (e instanceof QuoteUnavailableError) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ network: args.network, error: e.message, retryable: true }),
+            },
+          ],
+          isError: true as const,
+        };
+      }
+      throw e;
+    }
+  };
+}
+
+/** True if the error is a contract revert (route doesn't exist / no liquidity). */
+function isRevert(e: unknown): boolean {
+  if (!(e instanceof BaseError)) return false;
+  return !!e.walk(
+    (x) =>
+      x instanceof ContractFunctionRevertedError ||
+      x instanceof ExecutionRevertedError ||
+      (x instanceof BaseError && /execution reverted/i.test(x.details ?? ""))
+  );
+}
+
+/** Collects quote failures that were NOT contract reverts. */
+type ErrorSink = unknown[];
+
 export async function getDirectQuotes(
   client: ReturnType<typeof getClient>,
   tokenIn: Address,
   tokenOut: Address,
-  amountInWei: bigint
+  amountInWei: bigint,
+  rpcErrors: ErrorSink = []
 ): Promise<SwapQuote[]> {
   const sushi = SUSHI_CONTRACTS.mainnet;
   const quotes: SwapQuote[] = [];
@@ -50,6 +111,7 @@ export async function getDirectQuotes(
 
   for (const r of v3Results) {
     if (r.status === "fulfilled") quotes.push(r.value);
+    else if (!isRevert(r.reason)) rpcErrors.push(r.reason);
   }
 
   // Try V2
@@ -65,7 +127,9 @@ export async function getDirectQuotes(
       source: "V2",
       fee: 3000,
     });
-  } catch {}
+  } catch (e) {
+    if (!isRevert(e)) rpcErrors.push(e);
+  }
 
   return quotes;
 }
@@ -74,7 +138,8 @@ export async function getMultiHopQuotes(
   client: ReturnType<typeof getClient>,
   tokenIn: Address,
   tokenOut: Address,
-  amountInWei: bigint
+  amountInWei: bigint,
+  rpcErrors: ErrorSink = []
 ): Promise<SwapQuote[]> {
   const sushi = SUSHI_CONTRACTS.mainnet;
   const quotes: SwapQuote[] = [];
@@ -109,7 +174,8 @@ export async function getMultiHopQuotes(
                 source: `V3 multi (${fee1 / 10000}%→${midSymbol}→${fee2 / 10000}%)`,
                 fee: fee1 + fee2,
               };
-            } catch {
+            } catch (e) {
+              if (!isRevert(e)) rpcErrors.push(e);
               return null;
             }
           })()
@@ -145,6 +211,7 @@ export async function getMultiHopQuotes(
 
   for (const r of v2Results) {
     if (r.status === "fulfilled") quotes.push(r.value);
+    else if (!isRevert(r.reason)) rpcErrors.push(r.reason);
   }
 
   return quotes;
@@ -156,14 +223,20 @@ export async function getBestQuote(
   tokenOut: Address,
   amountInWei: bigint
 ): Promise<SwapQuote | null> {
-  // Try direct and multi-hop in parallel
-  const [direct, multiHop] = await Promise.all([
-    getDirectQuotes(client, tokenIn, tokenOut, amountInWei),
-    getMultiHopQuotes(client, tokenIn, tokenOut, amountInWei),
-  ]);
+  // Direct routes first (5 calls). The multi-hop search is ~50 calls, so only run
+  // it when no direct pool exists — firing both at once is what tripped public-RPC
+  // rate limits.
+  const rpcErrors: ErrorSink = [];
+  let quotes = await getDirectQuotes(client, tokenIn, tokenOut, amountInWei, rpcErrors);
+  if (quotes.length === 0) {
+    quotes = await getMultiHopQuotes(client, tokenIn, tokenOut, amountInWei, rpcErrors);
+  }
 
-  const quotes = [...direct, ...multiHop];
-  if (quotes.length === 0) return null;
+  if (quotes.length === 0) {
+    // Every route failed. Only call it "no liquidity" if they all reverted.
+    if (rpcErrors.length > 0) throw new QuoteUnavailableError();
+    return null;
+  }
 
   quotes.sort((a, b) => (b.amountOut > a.amountOut ? 1 : b.amountOut < a.amountOut ? -1 : 0));
   return quotes[0];
