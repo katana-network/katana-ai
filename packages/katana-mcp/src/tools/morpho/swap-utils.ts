@@ -78,7 +78,7 @@ const RETRY_DELAYS_MS = [1_000, 2_500, 5_000];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Retry an RPC call on rate limits / transport errors with backoff. Reverts are not retried. */
-async function withBackoff<T>(fn: () => Promise<T>): Promise<T> {
+export async function withBackoff<T>(fn: () => Promise<T>): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     try {
       return await fn();
@@ -125,20 +125,23 @@ export class QuoteUnavailableError extends Error {
 }
 
 /**
- * Wrap a loop tool handler:
+ * Wrap a loop-workflow tool handler (analyze_loop_strategy, build_morpho_loop,
+ * build_morpho_authorize):
  * - on the public RPC, annotate successful responses with an `rpc` note telling
  *   the agent to recommend a custom RPC provider;
  * - turn quote failures and rate limits into a clear JSON error with
  *   `needsCustomRpc` and setup instructions instead of an unhandled exception.
  */
 export function quoteSafe<A extends { network?: string }, R>(
-  handler: (args: A) => Promise<R>
+  handler: (args: A) => Promise<R>,
+  opts: { annotatePublicRpc?: boolean } = {}
 ): (args: A) => Promise<R | { content: { type: "text"; text: string }[]; isError: true }> {
+  const annotate = opts.annotatePublicRpc ?? true;
   return async (args: A) => {
     const custom = hasCustomRpc();
     try {
       const result = await handler(args);
-      if (custom) return result;
+      if (custom || !annotate) return result;
       // Annotate JSON responses with the public-RPC note
       const content = (result as { content?: { type: string; text: string }[] })?.content;
       if (content?.[0]?.type === "text") {
@@ -155,11 +158,14 @@ export function quoteSafe<A extends { network?: string }, R>(
       return result;
     } catch (e) {
       const quoteErr = e instanceof QuoteUnavailableError;
-      if (!quoteErr && !isRateLimitOrTransport(e)) throw e;
-      const rateLimited = quoteErr ? e.rateLimited : isRateLimit(e);
-      const message = quoteErr
-        ? e.message
-        : `The ${custom ? "configured RPC (KATANA_RPC_URL)" : "free public Katana RPC"} ${rateLimited ? "rate-limited" : "rejected or timed out"} the on-chain reads this tool needs.${custom ? "" : " Loop tools need many RPC requests per run, which the public RPC cannot reliably serve — the user needs their own RPC provider to run them properly."}`;
+      // token-meta.ts throws this when decimals can't be read (name check avoids an import cycle)
+      const decimalsErr = e instanceof Error && e.name === "TokenDecimalsUnavailableError";
+      if (!quoteErr && !decimalsErr && !isRateLimitOrTransport(e)) throw e;
+      const cause = decimalsErr ? (e as Error).cause : e;
+      const rateLimited = quoteErr ? e.rateLimited : isRateLimit(cause);
+      const message = quoteErr || decimalsErr
+        ? (e as Error).message
+        : `The ${custom ? "configured RPC (KATANA_RPC_URL)" : "free public Katana RPC"} ${rateLimited ? "rate-limited" : "rejected or timed out"} the on-chain reads this tool needs.${custom ? "" : " The public RPC is free and rate-limited — for reliable use the user needs their own RPC provider."}`;
       return {
         content: [
           {

@@ -6,6 +6,7 @@ import { MORPHO_CONTRACTS, getTokenByAddress, type NetworkName } from "../../con
 import { metaMorphoAbi } from "../../abis/metamorpho.js";
 import { morphoAbi } from "../../abis/morpho.js";
 import { erc20Abi } from "../../abis/erc20.js";
+import { getTokenDecimals } from "./token-meta.js";
 import {
   morphoQuery,
   useMorphoApi,
@@ -300,7 +301,7 @@ async function fetchFromRPC(
   const assetAddr = asset as Address;
   const [assetSymbol, assetDecimals] = await Promise.all([
     client.readContract({ address: assetAddr, abi: erc20Abi, functionName: "symbol" }).catch(() => "N/A"),
-    client.readContract({ address: assetAddr, abi: erc20Abi, functionName: "decimals" }).catch(() => 18),
+    getTokenDecimals(client, assetAddr),
   ]);
 
   const totalAssetsVal = totalAssets as bigint;
@@ -360,9 +361,7 @@ async function fetchFromRPC(
       const loanSymbol = knownLoan?.symbol ?? await client.readContract({
         address: params.loanToken as Address, abi: erc20Abi, functionName: "symbol",
       }).catch(() => "N/A") as string;
-      const loanDecimals = knownLoan?.decimals ?? await client.readContract({
-        address: params.loanToken as Address, abi: erc20Abi, functionName: "decimals",
-      }).catch(() => 18) as number;
+      const loanDecimals = knownLoan?.decimals ?? await getTokenDecimals(client, params.loanToken as Address) as number;
       const collateralSymbol = knownCollateral?.symbol ?? await client.readContract({
         address: params.collateralToken as Address, abi: erc20Abi, functionName: "symbol",
       }).catch(() => "N/A") as string;

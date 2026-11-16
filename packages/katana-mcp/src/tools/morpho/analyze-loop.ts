@@ -6,6 +6,7 @@ import { MORPHO_CONTRACTS, type NetworkName } from "../../config/contracts.js";
 import { morphoAbi } from "../../abis/morpho.js";
 import { getMarketParams } from "./market-params.js";
 import { erc20Abi } from "../../abis/erc20.js";
+import { getTokenDecimals } from "./token-meta.js";
 import { getBestQuote, quoteSafe } from "./swap-utils.js";
 
 // ─── Tool ────────────────────────────────────────────────────────────────────
@@ -64,9 +65,9 @@ export function registerAnalyzeLoop(server: McpServer) {
       // All 6 calls fire together via multicall batching on the client
       const [collSym, collDec, loanSym, loanDec] = await Promise.all([
         client.readContract({ address: collateralAddr, abi: erc20Abi, functionName: "symbol" }).catch(() => "???"),
-        client.readContract({ address: collateralAddr, abi: erc20Abi, functionName: "decimals" }).catch(() => 18),
+        getTokenDecimals(client, collateralAddr),
         client.readContract({ address: loanAddr, abi: erc20Abi, functionName: "symbol" }).catch(() => "???"),
-        client.readContract({ address: loanAddr, abi: erc20Abi, functionName: "decimals" }).catch(() => 18),
+        getTokenDecimals(client, loanAddr),
       ]);
 
       const collSymbol = collSym as string;

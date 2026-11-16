@@ -5,6 +5,7 @@ import { getClient } from "../../clients.js";
 import { MORPHO_CONTRACTS, type NetworkName } from "../../config/contracts.js";
 import { metaMorphoAbi, metaMorphoFactoryAbi } from "../../abis/metamorpho.js";
 import { erc20Abi } from "../../abis/erc20.js";
+import { getTokenDecimals } from "./token-meta.js";
 import {
   morphoQuery,
   useMorphoApi,
@@ -53,7 +54,7 @@ async function fetchStaticData(
 
       const [assetSymbol, assetDecimals] = await Promise.all([
         client.readContract({ address: asset as Address, abi: erc20Abi, functionName: "symbol" }).catch(() => "N/A"),
-        client.readContract({ address: asset as Address, abi: erc20Abi, functionName: "decimals" }).catch(() => 18),
+        getTokenDecimals(client, asset as Address),
       ]);
 
       return {
@@ -213,7 +214,7 @@ async function listVaultsFromApi(listedOnly: boolean, includeV2: boolean) {
     v1Count: v1Out.length,
     v2Count: v2Out.length,
     vaults,
-    note: "Sorted by TVL (USD). netApy includes rewards and fees. 'listed' = curated by Morpho. Vault V2 deposits/withdrawals use the same ERC-4626 interface, but build_morpho_vault_deposit/withdraw are verified for v1 vaults — check the vault before transacting with a V2.",
+    note: "Sorted by TVL (USD). netApy includes rewards and fees. 'listed' = curated by Morpho. build_morpho_vault_deposit/withdraw support both v1 and V2 (ERC-4626). V2 vaults report 0 from maxWithdraw/maxRedeem — use the withdraw tool's liquidityCheck or get_morpho_vault_detail liquidity instead.",
   };
 }
 

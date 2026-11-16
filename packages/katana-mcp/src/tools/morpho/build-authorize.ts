@@ -4,6 +4,7 @@ import { encodeFunctionData, type Address } from "viem";
 import { getClient } from "../../clients.js";
 import { MORPHO_CONTRACTS, type NetworkName } from "../../config/contracts.js";
 import { morphoAbi } from "../../abis/morpho.js";
+import { quoteSafe, withBackoff } from "./swap-utils.js";
 
 const inputSchema = {
   userAddress: z
@@ -20,10 +21,10 @@ export function registerBuildAuthorize(server: McpServer) {
     "build_morpho_authorize",
     {
       description:
-        "Check and build the one-time authorization tx for Morpho's GeneralAdapter1. Required before using build_morpho_loop (atomic leverage). Returns an unsigned setAuthorization tx if not yet authorized, or confirms already authorized.",
+        "Check and build the one-time authorization tx for Morpho's GeneralAdapter1. Required before using build_morpho_loop (atomic leverage). Returns an unsigned setAuthorization tx if not yet authorized, or confirms already authorized. Reads the authorization state live on-chain (retried on rate limits); if the free public RPC still rejects it, returns needsCustomRpc: true — tell the user the leverage-loop workflow needs their own RPC provider (KATANA_RPC_URL).",
       inputSchema,
     },
-    async ({ userAddress, network }) => {
+    quoteSafe(async ({ userAddress, network }) => {
       const net = network as NetworkName;
       const client = getClient(net);
       const morpho = MORPHO_CONTRACTS.mainnet.morpho;
@@ -31,12 +32,14 @@ export function registerBuildAuthorize(server: McpServer) {
       const user = userAddress as Address;
 
       // Check if already authorized
-      const isAuthorized = await client.readContract({
-        address: morpho,
-        abi: morphoAbi,
-        functionName: "isAuthorized",
-        args: [user, adapter],
-      });
+      const isAuthorized = await withBackoff(() =>
+        client.readContract({
+          address: morpho,
+          abi: morphoAbi,
+          functionName: "isAuthorized",
+          args: [user, adapter],
+        })
+      );
 
       if (isAuthorized) {
         return {
@@ -92,6 +95,6 @@ export function registerBuildAuthorize(server: McpServer) {
           },
         ],
       };
-    }
+    })
   );
 }

@@ -19,6 +19,7 @@ import {
 import { morphoAbi } from "../../abis/morpho.js";
 import { getMarketParams } from "./market-params.js";
 import { erc20Abi } from "../../abis/erc20.js";
+import { getTokenDecimals } from "./token-meta.js";
 import { bundler3Abi, callComponents } from "../../abis/bundler3.js";
 import { generalAdapter1Abi } from "../../abis/general-adapter1.js";
 import { sushiV3RouterAbi } from "../../abis/sushi-v3-router.js";
@@ -133,15 +134,11 @@ export function registerBuildLoop(server: McpServer) {
         client
           .readContract({ address: collateralToken, abi: erc20Abi, functionName: "symbol" })
           .catch(() => "???"),
-        client
-          .readContract({ address: collateralToken, abi: erc20Abi, functionName: "decimals" })
-          .catch(() => 18),
+        getTokenDecimals(client, collateralToken),
         client
           .readContract({ address: loanToken, abi: erc20Abi, functionName: "symbol" })
           .catch(() => "???"),
-        client
-          .readContract({ address: loanToken, abi: erc20Abi, functionName: "decimals" })
-          .catch(() => 18),
+        getTokenDecimals(client, loanToken),
         client.readContract({
           address: morpho,
           abi: morphoAbi,

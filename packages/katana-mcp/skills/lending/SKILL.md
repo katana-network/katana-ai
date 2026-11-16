@@ -245,8 +245,9 @@ Returns: prerequisites (authorization + approval status), unsigned tx, and posit
   - Supply/borrow → approve **Morpho Core** (`0xD50F2DffFd62f94Ee4AEd9ca05C61d0753268aBc`)
   - Leverage loops → approve **Bundler3** (`0xA8C5e23C9C0DF2b6fF716486c6bBEBB6661548C8`)
 - **Authorization is separate from approval.** `build_morpho_authorize` grants GeneralAdapter1 permission to act in Morpho on the user's behalf. `build_approve` grants ERC20 token spending. Both are needed for loops.
-- **Vault V2 transactions.** `list_morpho_vaults` and `get_morpho_vault_detail` cover Vault V2s, and V2s use the same ERC-4626 `deposit`/`withdraw`/`redeem` interface, but `build_morpho_vault_deposit`/`build_morpho_vault_withdraw` were built and tested against MetaMorpho v1. Check `get_morpho_vault_detail` (liquidity, caps, warnings) before building a V2 transaction.
+- **Vault V2 transactions.** `build_morpho_vault_deposit` and `build_morpho_vault_withdraw` work for both MetaMorpho v1 and Vault V2 (both ERC-4626; tested against live V2 vaults). **Vault V2 always returns 0 from `maxWithdraw`/`maxRedeem`/`maxDeposit`**, so never read those as "nothing withdrawable". The withdraw tool instead simulates the exact call from the owner and returns `liquidityCheck`: `ok` (it will go through), `reverts` (with a WARNING: amount above balance or not enough liquidity), or `unknown` (RPC couldn't simulate; check `get_morpho_vault_detail` liquidity).
 - **Fallback is slower and thinner.** If a response says `source: "rpc"`, the Morpho API was unreachable: the first discovery call scans events from genesis, and may hit public-RPC rate limits.
+- **Token decimals are never guessed.** Known tokens come from config; others are read on-chain with retries. If decimals can't be read, the tool returns an error instead of building a transaction for the wrong amount — relay it and retry, or recommend the user's own RPC provider.
 
 ## Common Mistakes
 

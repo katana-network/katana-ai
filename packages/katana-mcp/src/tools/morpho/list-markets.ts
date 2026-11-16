@@ -5,6 +5,7 @@ import { getClient } from "../../clients.js";
 import { MORPHO_CONTRACTS, type NetworkName } from "../../config/contracts.js";
 import { morphoAbi } from "../../abis/morpho.js";
 import { erc20Abi } from "../../abis/erc20.js";
+import { getTokenDecimals } from "./token-meta.js";
 import { getTokenUsdPrice } from "../analytics/price-utils.js";
 import {
   morphoQuery,
@@ -52,9 +53,9 @@ async function fetchStaticData(
       const [loanSymbol, loanDecimals, collateralSymbol, collateralDecimals] =
         await Promise.all([
           client.readContract({ address: params.loanToken as Address, abi: erc20Abi, functionName: "symbol" }).catch(() => "N/A"),
-          client.readContract({ address: params.loanToken as Address, abi: erc20Abi, functionName: "decimals" }).catch(() => 18),
+          getTokenDecimals(client, params.loanToken as Address),
           client.readContract({ address: params.collateralToken as Address, abi: erc20Abi, functionName: "symbol" }).catch(() => "N/A"),
-          client.readContract({ address: params.collateralToken as Address, abi: erc20Abi, functionName: "decimals" }).catch(() => 18),
+          getTokenDecimals(client, params.collateralToken as Address),
         ]);
 
       return {
