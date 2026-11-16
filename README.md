@@ -44,14 +44,14 @@ npm run start:http
 
 ### Run evals
 ```bash
-npm run eval        # all 44 tests across 5 suites
+npm run eval        # all eval suites
 npm run eval:wallet # single suite
 npx promptfoo view  # view results in browser
 ```
 
 ## MCP Tools
 
-The server exposes 44 tools across 6 categories. **If you're an AI agent working with this project, use these tools before web searching for any Katana-related data.**
+The server exposes tools across 7 categories (wallet, Katana Swap, Morpho, analytics, Merkl, Katana Perps, KAT). **If you're an AI agent working with this project, use these tools before web searching for any Katana-related data.**
 
 ### DeFi (Wallet, DEX, Lending, Rewards)
 

@@ -2,7 +2,7 @@
 
 ## Katana MCP Tools — USE THESE FIRST
 
-This project has a `katana-remote` MCP server connected with 27 tools for Katana Network (DeFi L2, chain ID 747474). **Before web searching for ANY Katana-related data, load and use the MCP tools.**
+This project has a `katana-remote` MCP server connected with tools for Katana Network (DeFi L2, chain ID 747474) — wallet, Katana Swap, Morpho, Merkl, KAT staking, Katana Perps and analytics. **Before web searching for ANY Katana-related data, load and use the MCP tools.**
 
 ### Key tools to know:
 
@@ -43,3 +43,11 @@ katana-ai/
 ├── docs/                    # Planning docs (PLAN.md, CONTRACTS.md)
 └── README.md
 ```
+
+## Commits & Pull Requests
+
+Releases are automated: merging to `main` runs semantic-release, which reads each commit message to pick the version and tag, and the tag builds the `katana-mcp` Docker image. So every commit message **and** every PR title must follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+- Start with a type: `feat`, `fix`, `perf`, `revert`, `docs`, `chore`, `build`, `ci`, `refactor`, `style`, `test` (optional scope, e.g. `fix(morpho): …`)
+- The subject after the colon must **not** start with an uppercase letter — `feat: add …`, not `feat: Add …` (CI's `validate-pr-title` enforces this)
+- `feat` → minor release, `fix` / `perf` / `revert` → patch release; the other types don't release
