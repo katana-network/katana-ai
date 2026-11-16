@@ -78,7 +78,7 @@ export function registerBuildLoop(server: McpServer) {
     "build_morpho_loop",
     {
       description:
-        "Build an atomic leveraged loop transaction using Morpho flashloans + Bundler3. Executes supply → flashloan → swap → supply collateral → borrow in a single transaction. Returns unsigned Bundler3.multicall tx data, prerequisite checks, and position summary. Requires build_morpho_authorize first. NOTE: This tool makes several on-chain reads (market params, token metadata, swap quotes, prerequisite checks) and may take 10-20 seconds to complete. If it times out, try again — the RPC can be slow under load.",
+        "Build an atomic leveraged loop transaction using Morpho flashloans + Bundler3. Executes supply → flashloan → swap → supply collateral → borrow in a single transaction. Returns unsigned Bundler3.multicall tx data, prerequisite checks, and position summary. Requires build_morpho_authorize first. NOTE: This tool makes several on-chain reads (swap quotes, allowance and authorization checks) and may take 10-30 seconds. On the free public Katana RPC it can be rate-limited — it retries with backoff, and if it still fails it returns needsCustomRpc: true. Before running it, tell the user that building loops reliably requires their own RPC provider (KATANA_RPC_URL); if the response includes an `rpc` note, relay it.",
       inputSchema,
     },
     quoteSafe(async ({

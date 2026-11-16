@@ -214,6 +214,7 @@ Returns: prerequisites (authorization + approval status), unsigned tx, and posit
 3. `get_swap_quote` (from dex tools) — estimate slippage for liquidation-sized trades to assess real exit costs
 
 ### Leverage Loop (5 Steps)
+0. **Tell the user about the RPC requirement first.** Loop tools make dozens of swap-quote and on-chain requests per run. On the free public Katana RPC they can be rate-limited partway through, so say up front: *"Loop simulations and builds need many RPC requests. For reliable results, configure your own Katana RPC provider by setting `KATANA_RPC_URL` and restarting the MCP server. I can try on the public RPC, but it may be rate-limited."* Skip this if a response already shows `rpc` as custom (no `rpc.provider: "public"` note).
 1. `list_morpho_markets` — find a suitable market (good LLTV, sufficient liquidity)
 2. `analyze_loop_strategy` — **always simulate first** to see effective leverage, health factor, slippage costs, and unwind analysis
 3. `build_morpho_authorize` — check/build one-time authorization for GeneralAdapter1
@@ -227,6 +228,11 @@ Returns: prerequisites (authorization + approval status), unsigned tx, and posit
 
 ## Safety Guidelines
 
+- **Loop tools and the RPC:**
+  - **`rpc.provider: "public"` on a success:** relay the note. The run worked, but it's on the free public RPC, and the user should set up their own provider for reliable use.
+  - **`needsCustomRpc: true` on an error:** the public RPC rate-limited or dropped the requests even after retries. Explain that this is **not** a liquidity or market problem, and that running loop tools properly requires the user's own RPC provider. Give them the `howToFix` steps (set `KATANA_RPC_URL` and restart the MCP server). Do not retry in a tight loop; one retry after a minute is reasonable.
+  - **`rpc: "custom"` with an error:** their own provider is limiting them. Suggest checking its plan limits.
+  - **Never report a rate-limited quote as "no liquidity".** The tools only say a pair has no route when every quote genuinely reverts.
 - **Health factor:** Always check after borrowing or looping. Keep above **1.5** for safety margin (1.0 = liquidation threshold). The tools enforce a 5% safety margin on max leverage: `maxSafeLeverage = 1/(1-LLTV) × 0.95`.
 - **LLTV is NOT the recommended borrow ratio.** Borrowing at exactly LLTV means instant liquidation risk. Stay well below.
 - **Analyze before looping.** `analyze_loop_strategy` shows real swap slippage and unwind costs. If `unwindDebtShortfall > 0`, warn the user that exiting the loop will cost extra due to slippage.

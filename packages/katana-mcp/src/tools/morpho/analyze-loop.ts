@@ -35,7 +35,7 @@ export function registerAnalyzeLoop(server: McpServer) {
     "analyze_loop_strategy",
     {
       description:
-        "Analyze a Morpho looping strategy with real Sushi swap slippage. Given a market and collateral amount, simulates N loop iterations (supply → borrow → swap → supply) and the full unwind. Uses QuoterV2 for real price impact at each step. Returns per-loop breakdown, unwind analysis, and total slippage cost. NOTE: This tool queries multiple swap routes per loop iteration and may take 10-20 seconds. If it times out, try again — the RPC can be slow under load.",
+        "Analyze a Morpho looping strategy with real Sushi swap slippage. Given a market and collateral amount, simulates N loop iterations (supply → borrow → swap → supply) and the full unwind. Uses QuoterV2 for real price impact at each step. Returns per-loop breakdown, unwind analysis, and total slippage cost. NOTE: This tool makes many swap-quote requests (several per loop iteration) and may take 10-30 seconds. On the free public Katana RPC it can be rate-limited — it retries with backoff, and if it still fails it returns needsCustomRpc: true. Before running it, tell the user that reliable loop simulations require their own RPC provider (KATANA_RPC_URL); if the response includes an `rpc` note, relay it.",
       inputSchema,
     },
     quoteSafe(async ({ marketId, amount, loops, network }) => {
