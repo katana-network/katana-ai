@@ -10,7 +10,7 @@ export function registerBuildDepositVault(server: McpServer) {
     "build_kat_deposit_vault",
     {
       description:
-        "Build an unsigned transaction to deposit KAT into the avKAT vault (ERC-4626). Returns liquid, transferable avKAT shares that auto-compound rewards. User must first approve the avKAT vault to spend their KAT.",
+        "Build an unsigned transaction to deposit KAT into the avKAT vault (ERC-4626). This is how KAT is staked. Returns liquid, transferable avKAT whose KAT value grows as revenue-funded KAT buybacks are compounded into the vault every epoch (nothing to claim). User must first approve the avKAT vault to spend their KAT.",
       inputSchema: {
         amount: z
           .string()

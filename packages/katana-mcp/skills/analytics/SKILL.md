@@ -30,14 +30,14 @@ Decimals: USDC/USDT = 6, WBTC/LBTC = 8, all others = 18.
 
 ### get_token_prices
 
-Get USD spot prices for Katana tokens derived from Sushi V3 pool data.
+Get USD spot prices for Katana tokens derived from Katana Swap (Sushi V3) pool data.
 
 - `tokens` (optional): comma-separated symbols or addresses (e.g. `"WETH,KAT"`). Defaults to all 12 known tokens.
 - `network`: `"mainnet"` (default) or `"testnet"`
 
-Prices are read from Sushi V3 pool `slot0` (sqrtPriceX96), selecting the most liquid pool across fee tiers. Tokens without a direct stablecoin pool are routed through WETH. Stablecoins (USDC, USDT, USDS, AUSD) are assumed $1.
+Prices are read from Katana Swap (Sushi V3) pool `slot0` (sqrtPriceX96), selecting the most liquid pool across fee tiers. Tokens without a direct stablecoin pool are routed through WETH. Stablecoins (USDC, USDT, USDS, AUSD) are assumed $1.
 
-**Note:** These are on-chain spot prices, not aggregated oracle prices. Thin pools may show significant deviation from CEX prices. If a token returns "No liquidity found," it simply has no Sushi V3 pool — it does not mean the token is worthless.
+**Note:** These are on-chain spot prices, not aggregated oracle prices. Thin pools may show significant deviation from CEX prices. If a token returns "No liquidity found," it simply has no Katana Swap (Sushi V3) pool — it does not mean the token is worthless.
 
 ### get_gas_price
 
@@ -51,7 +51,7 @@ Returns EIP-1559 base fee, estimated max fee, priority fee, and gas cost estimat
 
 Get the full static reference of all Katana contract addresses, named function signatures, token list, and protocol details. No RPC calls — instant response.
 
-Returns: all Sushi, Morpho, Merkl, and infra contract addresses; key function signatures with **named parameters** (e.g. `exactInputSingle((address tokenIn, address tokenOut, uint24 fee, ...))`); the Merkl claim flow (API endpoint, array construction, timing); and the complete token list with decimals.
+Returns: all Katana Swap (Sushi), Morpho, Merkl, and infra contract addresses; key function signatures with **named parameters** (e.g. `exactInputSingle((address tokenIn, address tokenOut, uint24 fee, ...))`); the Merkl claim flow (API endpoint, array construction, timing); and the complete token list with decimals.
 
 **Use this first** when building raw contract integrations, designing new tooling, or exploring what's available on Katana. Not needed when using the other MCP tools (they handle contract details internally).
 
@@ -78,7 +78,7 @@ Statuses: `success`, `reverted`, or `pending`. On Katana with 1-second blocks, p
 ## Common Mistakes
 
 - **Truncated transaction hash in `tx_lookup`.** Transaction hashes must be exactly 66 characters (`0x` + 64 hex digits). A shorter or malformed hash will fail with a bytes size error. Always copy the full hash.
-- **Assuming "No liquidity found" means a token is worthless.** `get_token_prices` derives prices from Sushi V3 pools. If a token has no pool, it returns no price — this doesn't mean the token has zero value. Note this to the user and suggest checking external sources.
+- **Assuming "No liquidity found" means a token is worthless.** `get_token_prices` derives prices from Katana Swap (Sushi V3) pools. If a token has no pool, it returns no price — this doesn't mean the token has zero value. Note this to the user and suggest checking external sources.
 
 ## Cross-References
 

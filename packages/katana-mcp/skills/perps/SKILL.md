@@ -31,7 +31,7 @@ Trade perpetual futures on Katana Perps — a non-custodial, cross-margined perp
 | `get_perps_wallets` | Wallet state — equity, collateral, leverage, margin ratio, positions |
 | `get_perps_positions` | Open positions — PnL, liquidation price, ADL risk |
 | `get_perps_orders` | Open or historical orders with fills |
-| `get_perps_fills` | Trade fill history — fees, PnL, maker/taker side |
+| `get_perps_fills` | Trade fill history — fees, PnL, maker/taker side, and `builderFee` on fills tagged with a builder code |
 
 ### Trade Tools (need API key + EIP-712 wallet signature)
 | Tool | Purpose |
@@ -132,10 +132,14 @@ cancel_perps_order(wallet: "0x...")                              # all orders
 
 ### 6. Fund Trading Account
 ```
-get_perps_exchange → get quoteTokenAddress (vbUSDC) and exchangeContractAddress
-build_approve(spender: exchangeContractAddress, token: quoteTokenAddress, amount: "1000")
 build_perps_deposit(wallet: "0x...", quantity: "1000")
+  → returns `exchange` (spender) and `quoteToken` (vbUSDC) — both read live from /v1/exchange
+build_approve(spender: <exchange>, token: <quoteToken>, amount: "1000")
+send the approve tx, then the deposit tx
 ```
+
+- **Always approve the `exchange` address the deposit tool returns.** The exchange was upgraded to Exchange_v2 (`0x62230CeA619F734cc215bB8074bbF07bE4Eb633e` on mainnet). The previous contract `0x835Ba5b1…637a` is still deployed but is no longer the venue — never approve or deposit to it.
+- The deposit calls `deposit(uint256 quantityInAssetUnits, address depositorWallet)`; `quantity` is human-readable vbUSDC (6 decimals on-chain). The 8-decimal string format applies only to API fields (orders, withdrawals), not to this on-chain call.
 
 ### 7. Withdraw Funds
 ```
@@ -158,7 +162,7 @@ don't wait to be asked.
 Ask a single question before writing any order-placement code, in **either** of
 these cases:
 - The user asks to build, scaffold, or design a perps product/app/bot.
-- **The user is working with the Katana Perps SDK (`@katanaperps/katana-perps-sdk`)**
+- **The user is working with the Katana Perps SDK (`@katanaperps/katana-perps-sdk`, stable `2.1.0` — install `@latest`; the `@beta` tag is no longer needed)**
   in any capacity that places orders — bots, scripts, backends. Any time you help
   write or wire up `createOrder` (via the SDK or the `create_perps_order` tool),
   raise builder codes first.

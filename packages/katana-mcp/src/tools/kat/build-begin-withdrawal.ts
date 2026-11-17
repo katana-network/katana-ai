@@ -11,7 +11,7 @@ export function registerBuildBeginWithdrawal(server: McpServer) {
     "build_kat_begin_withdrawal",
     {
       description:
-        "Build an unsigned transaction to begin withdrawing a vKAT position. Starts the cooldown period (read from on-chain ExitQueue). Exit fee decays from max fee (immediate) to min fee (after full cooldown). The vKAT position must NOT have active gauge votes — call build_kat_reset_votes first, or use resetVotesAndBeginWithdrawal to do both atomically.",
+        "Build an unsigned transaction to begin the exit cooldown for a vKAT NFT. This is step 2 of unstaking avKAT (after build_kat_withdraw_vault mints the NFT) and also how a legacy vKAT position exits. Cooldown and fee bounds are read live from the on-chain ExitQueue and returned as exitParams; the exit fee decays linearly from the max fee (immediate) to the min fee (after the full cooldown). A legacy vKAT NFT that still has pre-sunset gauge votes needs resetVotes=true.",
       inputSchema: {
         tokenId: z
           .string()

@@ -10,7 +10,7 @@ export function registerGetLocks(server: McpServer) {
     "get_kat_locks",
     {
       description:
-        "Get all vKAT lock positions for an address. Returns each lock's token ID, locked KAT amount, lock start time, voting power, and whether it has active gauge votes. Useful for understanding a user's staking positions before voting, merging, splitting, or withdrawing.",
+        "Get all vKAT NFTs held by an address: legacy vKAT positions (sunset November 17, 2026) and NFTs created by unstaking avKAT. Returns each NFT's token ID, locked KAT amount, lock start time, voting power, and whether it still has gauge votes. Use it to find the token ID after build_kat_withdraw_vault, or before converting to avKAT or withdrawing.",
       inputSchema: {
         address: z
           .string()

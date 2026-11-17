@@ -62,7 +62,7 @@ export function registerBuildPerpsWithdraw(server: McpServer) {
       try {
         const net = network as NetworkName;
         const nonce = generateNonce();
-        const domain = getDomain(net);
+        const domain = await getDomain(net);
 
         let bridgeAdapterAddress: string;
         let bridgeAdapterPayload: string;

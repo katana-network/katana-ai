@@ -10,7 +10,7 @@ export function registerBuildCancelWithdrawal(server: McpServer) {
     "build_kat_cancel_withdrawal",
     {
       description:
-        "Build an unsigned transaction to cancel an in-progress vKAT withdrawal. Restores the staking position and voting power. Can only be called during the cooldown period (after beginWithdrawal, before withdraw).",
+        "Build an unsigned transaction to cancel an in-progress exit during the cooldown (after beginWithdrawal, before withdraw). The user is left holding a vKAT NFT, which earns no rewards since the November 17, 2026 sunset — deposit it back into avKAT with build_kat_convert_to_vault to resume earning.",
       inputSchema: {
         tokenId: z
           .string()

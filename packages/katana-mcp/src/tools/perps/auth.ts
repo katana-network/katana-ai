@@ -192,8 +192,73 @@ export async function perpsAuthDelete(
 
 // ─── EIP-712 typed data builders ───────────────────────────────────────────
 
-export function getDomain(network: NetworkName) {
-  return PERPS_EIP712_DOMAIN[network];
+// ─── Live exchange info (contract address, quote token) ────────────────────
+
+export interface PerpsExchangeInfo {
+  exchangeContractAddress: Address;
+  quoteTokenAddress?: Address;
+  chainId: number;
+  source: "live" | "fallback";
+}
+
+const EXCHANGE_INFO_TTL_MS = 10 * 60 * 1000;
+const exchangeInfoCache: Partial<
+  Record<NetworkName, { info: PerpsExchangeInfo; at: number }>
+> = {};
+
+const isAddress = (v: unknown): v is Address =>
+  typeof v === "string" && /^0x[a-fA-F0-9]{40}$/.test(v);
+
+/**
+ * Current exchange contract and quote token, read from GET /v1/exchange (as the
+ * official SDK does) and cached for 10 minutes. Falls back to the configured
+ * Exchange_v2 address if the API is unreachable.
+ */
+export async function getExchangeInfo(
+  network: NetworkName
+): Promise<PerpsExchangeInfo> {
+  const cached = exchangeInfoCache[network];
+  if (cached && Date.now() - cached.at < EXCHANGE_INFO_TTL_MS) return cached.info;
+
+  try {
+    const data = (await perpsGet("/v1/exchange", undefined, network)) as Record<
+      string,
+      unknown
+    >;
+    if (isAddress(data.exchangeContractAddress)) {
+      const info: PerpsExchangeInfo = {
+        exchangeContractAddress: data.exchangeContractAddress,
+        quoteTokenAddress: isAddress(data.quoteTokenAddress)
+          ? data.quoteTokenAddress
+          : PERPS_CONTRACTS[network].quoteToken,
+        chainId:
+          typeof data.chainId === "number"
+            ? data.chainId
+            : PERPS_EIP712_DOMAIN[network].chainId,
+        source: "live",
+      };
+      exchangeInfoCache[network] = { info, at: Date.now() };
+      return info;
+    }
+  } catch {
+    // fall through to configured values
+  }
+
+  return {
+    exchangeContractAddress: PERPS_CONTRACTS[network].exchange,
+    quoteTokenAddress: PERPS_CONTRACTS[network].quoteToken,
+    chainId: PERPS_EIP712_DOMAIN[network].chainId,
+    source: "fallback",
+  };
+}
+
+export async function getDomain(network: NetworkName) {
+  const { exchangeContractAddress, chainId } = await getExchangeInfo(network);
+  return {
+    ...PERPS_EIP712_DOMAIN[network],
+    chainId,
+    verifyingContract: exchangeContractAddress,
+  };
 }
 
 // Convert UUID nonce to uint128 for EIP-712

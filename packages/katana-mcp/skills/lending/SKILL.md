@@ -153,7 +153,7 @@ Returns: unsigned tx, preview of shares burned / assets received, max withdrawab
 
 #### analyze_loop_strategy
 
-Simulate a looping strategy with real swap slippage from Sushi QuoterV2.
+Simulate a looping strategy with real swap slippage from Katana Swap (Sushi V3 QuoterV2).
 
 - `marketId` (required): bytes32 market ID from `list_morpho_markets` (must be exactly 66 characters: `0x` + 64 hex chars). **Does NOT accept token symbols** — you must look up the market ID first.
 - `amount` (required): initial collateral amount (e.g. `"10"` for 10 WETH)
@@ -173,17 +173,17 @@ Returns either "already authorized" or an unsigned `setAuthorization()` tx. This
 
 #### build_morpho_loop
 
-Build an atomic leveraged loop using Morpho flashloans + Bundler3 + Sushi swap.
+Build an atomic leveraged loop using Morpho flashloans + Bundler3 + Katana Swap (Sushi V3) swap.
 
 - `marketId` (required): market ID
 - `userAddress` (required): wallet address
 - `amount` (required): initial collateral amount
 - `targetLeverage` (required): leverage multiplier (e.g. `3.0` for 3x). Min 1.1, max 20.
 - `maxSlippageBps` (default 100): max swap slippage in bps (100 = 1%)
-- `swapFeeTier` (default 3000): Sushi V3 fee tier for the swap
+- `swapFeeTier` (default 3000): Katana Swap (Sushi V3) fee tier for the swap
 - `network`: `"mainnet"` | `"testnet"`
 
-Builds a single atomic `Bundler3.multicall()` tx that executes: pull collateral → flashloan → swap on Sushi → supply collateral → borrow to repay flash.
+Builds a single atomic `Bundler3.multicall()` tx that executes: pull collateral → flashloan → swap on Katana Swap → supply collateral → borrow to repay flash.
 
 Returns: prerequisites (authorization + approval status), unsigned tx, and position summary with health factor.
 
@@ -210,7 +210,7 @@ Returns: prerequisites (authorization + approval status), unsigned tx, and posit
 
 ### Vault Risk Analysis
 1. `get_morpho_vault_detail` — inspect per-market allocations, utilization, and withdrawal liquidity
-2. `get_pools` (from dex tools) — check DEX exit liquidity for each collateral token vs the loan token. If a collateral token has no Sushi pool or thin liquidity, liquidations may be difficult.
+2. `get_pools` (from dex tools) — check DEX exit liquidity for each collateral token vs the loan token. If a collateral token has no Katana Swap pool or thin liquidity, liquidations may be difficult.
 3. `get_swap_quote` (from dex tools) — estimate slippage for liquidation-sized trades to assess real exit costs
 
 ### Leverage Loop (5 Steps)
@@ -262,11 +262,11 @@ The MCP server uses two complementary data sources for Morpho data:
 1. **Morpho API** (`https://api.morpho.org/graphql`, docs: https://docs.morpho.org/api) — Morpho's indexed data: markets, v1 vaults, Vault V2s, positions, USD values, APYs, rewards, listing status and risk warnings. Primary source for `list_morpho_markets`, `list_morpho_vaults`, `get_morpho_markets`, `get_morpho_vault_detail`, and the `risk` block of `get_morpho_position`. **Locked to Katana mainnet (chain 747474)** in code — the chain ID is never taken from tool input. Bokuto testnet is not indexed by Morpho, so testnet always uses RPC. Responses are cached for 60s. Rate limit: 750 requests/min per IP (keyless).
 2. **Katana RPC** (`https://rpc.katana.network/`) — Direct on-chain reads via viem. Used for user balances in `get_morpho_position`, for every `build_*` tool and `analyze_loop_strategy` (transactions need exact, current values), on testnet, and as the automatic fallback when the Morpho API is unavailable.
 
-The SushiSwap DEX tools provide additional on-chain data for swap quotes, pool discovery, and liquidity analysis via the Sushi V3/V2 router contracts.
+The Katana Swap (built on Sushi) DEX tools provide additional on-chain data for swap quotes, pool discovery, and liquidity analysis via the Sushi V3/V2 router contracts.
 
 ## Cross-References
 
 - **wallet-manager**: `build_approve` for Morpho Core or Bundler3 approvals, `get_balances` to check token balances
-- **dex**: Sushi V3 provides the swap leg inside leverage loops. Use `get_swap_quote` to preview swap rates independently. Use `get_pools` to check DEX exit liquidity for vault collateral tokens — essential for assessing liquidation risk.
+- **dex**: Katana Swap (Sushi V3) provides the swap leg inside leverage loops. Use `get_swap_quote` to preview swap rates independently. Use `get_pools` to check DEX exit liquidity for vault collateral tokens — essential for assessing liquidation risk.
 - **merkl**: `get_merkl_opportunities` with `protocol: "morpho"` to check reward incentives on Morpho markets/vaults
 - **analytics**: `get_token_prices` for USD position values, `get_gas_price` for cost estimates on complex transactions

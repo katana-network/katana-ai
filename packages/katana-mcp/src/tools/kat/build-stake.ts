@@ -10,7 +10,7 @@ export function registerBuildStake(server: McpServer) {
     "build_kat_stake",
     {
       description:
-        "Build an unsigned transaction to stake KAT → vKAT by creating a lock in the VotingEscrow contract. Returns a soulbound NFT (vKAT) with voting power. User must first approve VotingEscrow to spend their KAT.",
+        "SUNSET — vKAT staking ended November 17, 2026 and vKAT earns no rewards. To stake KAT use build_kat_deposit_vault (avKAT) instead. Builds an unsigned transaction that locks KAT in the VotingEscrow contract and mints a soulbound vKAT NFT. User must first approve VotingEscrow to spend their KAT.",
       inputSchema: {
         amount: z
           .string()

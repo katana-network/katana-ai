@@ -4,6 +4,7 @@ import { registerBuildDepositVault } from "./build-deposit-vault.js";
 import { registerBuildConvertToVault } from "./build-convert-to-vault.js";
 import { registerBuildBeginWithdrawal } from "./build-begin-withdrawal.js";
 import { registerBuildWithdraw } from "./build-withdraw.js";
+import { registerBuildWithdrawVault } from "./build-withdraw-vault.js";
 import { registerBuildCancelWithdrawal } from "./build-cancel-withdrawal.js";
 import { registerBuildVote } from "./build-vote.js";
 import { registerBuildResetVotes } from "./build-reset-votes.js";
@@ -16,6 +17,7 @@ export function registerKatTools(server: McpServer) {
   registerBuildStake(server);
   registerBuildDepositVault(server);
   registerBuildConvertToVault(server);
+  registerBuildWithdrawVault(server);
   registerBuildBeginWithdrawal(server);
   registerBuildWithdraw(server);
   registerBuildCancelWithdrawal(server);

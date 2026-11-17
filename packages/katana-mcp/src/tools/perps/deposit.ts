@@ -1,19 +1,22 @@
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { parseUnits, encodeFunctionData, type Address } from "viem";
+import { getExchangeInfo } from "./auth.js";
 import { getChain } from "../../config/chains.js";
-import { PERPS_CONTRACTS, type NetworkName } from "../../config/contracts.js";
+import { type NetworkName } from "../../config/contracts.js";
 
-// Exchange_v1.deposit(uint256 quantityInPips, address wallet)
-// quantityInPips: vbUSDC amount in 8-decimal "pips" (1 USDC = 100000000 pips)
+// Exchange_v2.deposit(uint256 quantityInAssetUnits, address depositorWallet)
+// quantityInAssetUnits: vbUSDC amount in its native 6 decimals (1 USDC = 1_000_000).
+// (The previous uint64 "pips" signature does not exist on the deployed contract.)
+const VBUSDC_DECIMALS = 6;
 const exchangeDepositAbi = [
   {
     type: "function",
     name: "deposit",
     stateMutability: "nonpayable",
     inputs: [
-      { name: "quantityInPips", type: "uint64" },
-      { name: "wallet", type: "address" },
+      { name: "quantityInAssetUnits", type: "uint256" },
+      { name: "depositorWallet", type: "address" },
     ],
     outputs: [],
   },
@@ -42,28 +45,30 @@ export function registerBuildPerpsDeposit(server: McpServer) {
     async ({ wallet, quantity, network }) => {
       const net = network as NetworkName;
       const chain = getChain(net);
-      const exchangeAddr = PERPS_CONTRACTS[net].exchange;
+      // Always target the exchange the API reports as current
+      const exchangeInfo = await getExchangeInfo(net);
+      const exchangeAddr = exchangeInfo.exchangeContractAddress;
+      const quoteToken = exchangeInfo.quoteTokenAddress;
 
-      // vbUSDC has 6 decimals, but perps uses 8-decimal "pips"
-      // 1 USDC = 1_000_000 (6 dec) on-chain, but 100_000_000 (8 dec) in pips
-      const quantityInPips = parseUnits(quantity, 8);
+      const quantityInAssetUnits = parseUnits(quantity, VBUSDC_DECIMALS);
 
       const data = encodeFunctionData({
         abi: exchangeDepositAbi,
         functionName: "deposit",
-        args: [quantityInPips, wallet as Address],
+        args: [quantityInAssetUnits, wallet as Address],
       });
 
-      // vbUSDC address — users should get this from get_perps_exchange → quoteTokenAddress
-      // but we include it in the note for convenience
       const tx = {
         to: exchangeAddr,
         data,
         value: "0",
         chainId: chain.id,
         description: `Deposit ${quantity} vbUSDC into Katana Perps`,
-        note: `User must approve Exchange (${exchangeAddr}) to spend vbUSDC first. Use get_perps_exchange to get the quoteTokenAddress (vbUSDC). Wallet must be associated via associate_perps_wallet before first deposit.`,
+        note: `User must approve Exchange (${exchangeAddr}) to spend ${quantityInAssetUnits.toString()} units of vbUSDC${quoteToken ? ` (${quoteToken})` : ""} first. Wallet must be associated via associate_perps_wallet before first deposit.`,
         exchange: exchangeAddr,
+        exchangeSource: exchangeInfo.source,
+        quoteToken,
+        quantityInAssetUnits: quantityInAssetUnits.toString(),
       };
 
       return {

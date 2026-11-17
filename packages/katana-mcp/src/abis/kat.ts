@@ -149,7 +149,7 @@ export const avKatVaultAbi = [
     name: "withdrawTokenId",
     stateMutability: "nonpayable",
     inputs: [
-      { name: "shares", type: "uint256" },
+      { name: "assets", type: "uint256" },
       { name: "receiver", type: "address" },
       { name: "owner", type: "address" },
     ],
