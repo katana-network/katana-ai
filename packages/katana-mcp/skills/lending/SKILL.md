@@ -18,7 +18,9 @@ Lending, borrowing, leveraged loops, and vault deposits on Morpho Blue on Katana
 Morpho Blue is a permissionless lending protocol with two modes:
 
 1. **Direct Markets** — isolated pairs with a specific collateral token, loan token, oracle, IRM (interest rate model), and LLTV (liquidation loan-to-value). Users supply loan tokens to earn interest or deposit collateral to borrow.
-2. **MetaMorpho Vaults** — ERC-4626 vaults managed by curators that auto-allocate deposits across multiple markets. Simpler: just deposit and earn.
+2. **Vaults** — ERC-4626 vaults managed by curators that allocate deposits across markets. Simpler: just deposit and earn. Two generations exist on Katana:
+   - **MetaMorpho (v1)** — allocates directly across Morpho Blue markets.
+   - **Vault V2** — allocates through *adapters* (e.g. a MorphoMarketV1 adapter = Morpho Blue markets) under per-adapter, per-collateral and per-market caps.
 
 ### Key Concepts
 
@@ -39,30 +41,36 @@ Morpho Blue is a permissionless lending protocol with two modes:
 
 ### Discovery
 
+All read tools below use the **Morpho API** on Katana mainnet (see Data Sources) and fall back to on-chain reads if it is unavailable. Every response includes `source: "morpho-api"` or `"rpc"`. API-only fields (USD values, APYs, `listed`, `warnings`, Vault V2s) are absent on the `rpc` path — say so if you're answering from fallback data.
+
 #### list_morpho_markets
 
-Discover all Morpho Blue lending markets by scanning on-chain CreateMarket events.
+Discover all Morpho Blue lending markets on Katana.
 
 - `network`: `"mainnet"` | `"testnet"`
+- `minSupplyUsd` (default 100): hide markets with less supply than this. `0` shows all.
+- `listedOnly` (default false): only markets listed (curated) by Morpho.
 
-Returns: market ID, loan/collateral token symbols, LLTV, total supply, total borrow, utilization. Filters out dead markets (0 supply + 0 borrow).
+Returns per market: ID, loan/collateral symbols, LLTV, total supply/borrow/liquidity, utilization, supply and borrow in USD, `supplyApy`/`borrowApy` and `netSupplyApy`/`netBorrowApy` (net = including rewards), `listed`, and `warnings`. Dead markets (0 supply and 0 borrow) are dropped; `filteredOut` counts what the filters removed.
 
 #### list_morpho_vaults
 
-Discover all MetaMorpho vaults by scanning factory events.
+Discover all Morpho vaults on Katana — MetaMorpho (v1) **and Vault V2**.
 
 - `network`: `"mainnet"` | `"testnet"`
+- `listedOnly` (default false): only vaults listed (curated) by Morpho.
+- `includeV2` (default true): include Vault V2s.
 
-Returns: vault address, name, symbol, underlying asset, TVL, fee, curator, owner.
+Returns per vault, sorted by USD TVL: `version` (`v1`/`v2`), address, name, asset, TVL in tokens and USD, `apy`/`netApy`, fees (v1: `fee`; v2: `performanceFee`/`managementFee`), curator, owner, `listed`, `warnings`. V2 entries also include `liquidity`. Testnet / fallback returns v1 vaults only.
 
 #### get_morpho_markets
 
-Get detailed info for specific markets.
+Get detailed info for specific markets (one API call for all IDs).
 
 - `marketIds` (required): comma-separated market IDs (bytes32 hex strings)
 - `network`: `"mainnet"` | `"testnet"`
 
-Returns: full parameters (loan token, collateral token, oracle, IRM, LLTV) and current state (supply, borrow, utilization, fee).
+Returns: `params` (loan token, collateral token, oracle, IRM, LLTV) and `state` (supply, borrow, liquidity, utilization, fee, USD values, supply/borrow APYs with and without rewards), plus `listed` and `warnings`.
 
 #### get_morpho_position
 
@@ -72,16 +80,24 @@ Check a user's position in a specific market.
 - `user` (required): user address
 - `network`: `"mainnet"` | `"testnet"`
 
-Returns: supply shares/amount, borrow shares/amount, collateral amount, and health factor. **If health factor < 1.0, the position is liquidatable.**
+Returns: supply, borrow and collateral amounts — **read on-chain, exact and current**. When the position has debt (mainnet), a `risk` block from the Morpho API adds `healthFactor`, `priceDropToLiquidation` (how far the collateral price can fall before liquidation) and USD values. **Health factor < 1.0 means liquidatable.** Risk metrics are indexed and can lag a few blocks — near 1.0, tell the user to act now rather than wait for a fresher number.
 
 #### get_morpho_vault_detail
 
-Get detailed breakdown of a MetaMorpho vault's market allocations. Uses the Morpho Blue GraphQL API (`https://blue-api.morpho.org/graphql`) for rich pre-aggregated data with automatic RPC fallback.
+Detailed breakdown of one vault — v1 or V2 (detected automatically).
 
 - `vault` (required): vault address (from `list_morpho_vaults`)
 - `network`: `"mainnet"` | `"testnet"`
 
-Returns: vault metadata (name, TVL, fee, APY), per-market allocation breakdown (vault supply, supply cap, market utilization, available liquidity), and aggregate withdrawal liquidity (how much of the vault's TVL is immediately withdrawable). Essential for risk analysis and understanding vault composition.
+Returns for **v1**: name, TVL (tokens and USD), fee, APY/net APY, curator, `listed`, `warnings`, per-market allocations (vault supply, supply cap, market utilization, market liquidity, withdrawable) and aggregate `withdrawalLiquidity`.
+Returns for **V2**: TVL, APYs, performance/management fees, curator, owner, `listed`, `warnings`, `withdrawalLiquidity`, `idle` assets, `adapters` (type and assets) and `caps` (absolute/relative cap and current allocation).
+
+### Reading listings, warnings and APYs
+
+- **`listed`** means Morpho curates the market or vault in its app. Markets and vaults are permissionless, so unlisted ones can be legitimate — but on Katana most unlisted vaults are small personal or test vaults. Prefer listed ones when recommending, and say when something is unlisted.
+- **`warnings`** are Morpho's risk flags, formatted `LEVEL:type`, RED first. Treat any RED (e.g. `oracle_unusable`, `bad_debt_unrealized`, `sustained_low_liquidity`, `deposit_disabled`, `short_timelock`) as a reason **not** to deposit or borrow without explicitly warning the user. YELLOW flags (e.g. `low_liquidity`, `unrecognized_collateral_asset`, `not_whitelisted`) should be mentioned.
+- **`UNVERIFIED:implausible_apy`** is added when a vault's net APY is above 100%. These are almost always tiny personal vaults or broken accounting — never present that APY as a real yield.
+- **APYs** are current rates and move with utilization. `net*` values include rewards (and vault fees for vaults).
 
 ### Lending & Borrowing
 
@@ -183,7 +199,7 @@ Returns: prerequisites (authorization + approval status), unsigned tx, and posit
 3. `build_morpho_supply` — build the supply tx
 
 ### Passive Vault Deposit
-1. `list_morpho_vaults` — find vaults with best TVL and fee structure
+1. `list_morpho_vaults` — find vaults by net APY, TVL and fees; prefer `listed` vaults with no RED `warnings`
 2. `get_morpho_vault_detail` — inspect vault allocations, market utilization, and withdrawal liquidity before depositing
 3. `build_approve` — approve the vault address to spend the underlying asset
 4. `build_morpho_vault_deposit` — build the deposit tx (returns preview of shares received)
@@ -198,6 +214,7 @@ Returns: prerequisites (authorization + approval status), unsigned tx, and posit
 3. `get_swap_quote` (from dex tools) — estimate slippage for liquidation-sized trades to assess real exit costs
 
 ### Leverage Loop (5 Steps)
+0. **Tell the user about the RPC requirement first.** Loop tools make dozens of swap-quote and on-chain requests per run. On the free public Katana RPC they can be rate-limited partway through, so say up front: *"Loop simulations and builds need many RPC requests. For reliable results, configure your own Katana RPC provider by setting `KATANA_RPC_URL` and restarting the MCP server. I can try on the public RPC, but it may be rate-limited."* Skip this if a response already shows `rpc` as custom (no `rpc.provider: "public"` note).
 1. `list_morpho_markets` — find a suitable market (good LLTV, sufficient liquidity)
 2. `analyze_loop_strategy` — **always simulate first** to see effective leverage, health factor, slippage costs, and unwind analysis
 3. `build_morpho_authorize` — check/build one-time authorization for GeneralAdapter1
@@ -211,6 +228,11 @@ Returns: prerequisites (authorization + approval status), unsigned tx, and posit
 
 ## Safety Guidelines
 
+- **Loop tools and the RPC:**
+  - **`rpc.provider: "public"` on a success:** relay the note. The run worked, but it's on the free public RPC, and the user should set up their own provider for reliable use.
+  - **`needsCustomRpc: true` on an error:** the public RPC rate-limited or dropped the requests even after retries. Explain that this is **not** a liquidity or market problem, and that running loop tools properly requires the user's own RPC provider. Give them the `howToFix` steps (set `KATANA_RPC_URL` and restart the MCP server). Do not retry in a tight loop; one retry after a minute is reasonable.
+  - **`rpc: "custom"` with an error:** their own provider is limiting them. Suggest checking its plan limits.
+  - **Never report a rate-limited quote as "no liquidity".** The tools only say a pair has no route when every quote genuinely reverts.
 - **Health factor:** Always check after borrowing or looping. Keep above **1.5** for safety margin (1.0 = liquidation threshold). The tools enforce a 5% safety margin on max leverage: `maxSafeLeverage = 1/(1-LLTV) × 0.95`.
 - **LLTV is NOT the recommended borrow ratio.** Borrowing at exactly LLTV means instant liquidation risk. Stay well below.
 - **Analyze before looping.** `analyze_loop_strategy` shows real swap slippage and unwind costs. If `unwindDebtShortfall > 0`, warn the user that exiting the loop will cost extra due to slippage.
@@ -223,7 +245,9 @@ Returns: prerequisites (authorization + approval status), unsigned tx, and posit
   - Supply/borrow → approve **Morpho Core** (`0xD50F2DffFd62f94Ee4AEd9ca05C61d0753268aBc`)
   - Leverage loops → approve **Bundler3** (`0xA8C5e23C9C0DF2b6fF716486c6bBEBB6661548C8`)
 - **Authorization is separate from approval.** `build_morpho_authorize` grants GeneralAdapter1 permission to act in Morpho on the user's behalf. `build_approve` grants ERC20 token spending. Both are needed for loops.
-- **First market discovery call may be slow** — it scans events from genesis. Subsequent calls benefit from RPC caching.
+- **Vault V2 transactions.** `build_morpho_vault_deposit` and `build_morpho_vault_withdraw` work for both MetaMorpho v1 and Vault V2 (both ERC-4626; tested against live V2 vaults). **Vault V2 always returns 0 from `maxWithdraw`/`maxRedeem`/`maxDeposit`**, so never read those as "nothing withdrawable". The withdraw tool instead simulates the exact call from the owner and returns `liquidityCheck`: `ok` (it will go through), `reverts` (with a WARNING: amount above balance or not enough liquidity), or `unknown` (RPC couldn't simulate; check `get_morpho_vault_detail` liquidity).
+- **Fallback is slower and thinner.** If a response says `source: "rpc"`, the Morpho API was unreachable: the first discovery call scans events from genesis, and may hit public-RPC rate limits.
+- **Token decimals are never guessed.** Known tokens come from config; others are read on-chain with retries. If decimals can't be read, the tool returns an error instead of building a transaction for the wrong amount — relay it and retry, or recommend the user's own RPC provider.
 
 ## Common Mistakes
 
@@ -235,8 +259,8 @@ Returns: prerequisites (authorization + approval status), unsigned tx, and posit
 
 The MCP server uses two complementary data sources for Morpho data:
 
-1. **Morpho Blue GraphQL API** (`https://blue-api.morpho.org/graphql`) — Pre-aggregated vault data including APY, allocations, utilization breakdowns. Used by `get_morpho_vault_detail` as the primary source for rich vault analysis data.
-2. **Katana RPC** (`https://rpc.katana.network/`) — Direct on-chain reads via viem. Used by all tools as the primary source for market data, positions, and transaction building. Also serves as automatic fallback when the GraphQL API is unavailable.
+1. **Morpho API** (`https://api.morpho.org/graphql`, docs: https://docs.morpho.org/api) — Morpho's indexed data: markets, v1 vaults, Vault V2s, positions, USD values, APYs, rewards, listing status and risk warnings. Primary source for `list_morpho_markets`, `list_morpho_vaults`, `get_morpho_markets`, `get_morpho_vault_detail`, and the `risk` block of `get_morpho_position`. **Locked to Katana mainnet (chain 747474)** in code — the chain ID is never taken from tool input. Bokuto testnet is not indexed by Morpho, so testnet always uses RPC. Responses are cached for 60s. Rate limit: 750 requests/min per IP (keyless).
+2. **Katana RPC** (`https://rpc.katana.network/`) — Direct on-chain reads via viem. Used for user balances in `get_morpho_position`, for every `build_*` tool and `analyze_loop_strategy` (transactions need exact, current values), on testnet, and as the automatic fallback when the Morpho API is unavailable.
 
 The SushiSwap DEX tools provide additional on-chain data for swap quotes, pool discovery, and liquidity analysis via the Sushi V3/V2 router contracts.
 

@@ -5,6 +5,8 @@ import { getClient } from "../../clients.js";
 import { type NetworkName } from "../../config/contracts.js";
 import { metaMorphoAbi } from "../../abis/metamorpho.js";
 import { erc20Abi } from "../../abis/erc20.js";
+import { getTokenDecimals } from "./token-meta.js";
+import { quoteSafe, withBackoff } from "./swap-utils.js";
 import { getChain } from "../../config/chains.js";
 
 export function registerBuildVaultDeposit(server: McpServer) {
@@ -12,12 +14,12 @@ export function registerBuildVaultDeposit(server: McpServer) {
     "build_morpho_vault_deposit",
     {
       description:
-        "Build an unsigned transaction to deposit into a MetaMorpho vault (ERC-4626) on Katana. Vaults auto-allocate deposits across Morpho Blue markets — simpler than direct market supply. Use list_morpho_vaults to discover vaults first. User must approve the vault to spend the underlying asset.",
+        "Build an unsigned transaction to deposit into a Morpho vault on Katana — MetaMorpho (v1) or Vault V2 (both ERC-4626). Vaults allocate deposits across Morpho Blue markets (v1) or through adapters (V2) — simpler than direct market supply. Use list_morpho_vaults to discover vaults first, and prefer listed vaults without RED warnings. User must approve the vault to spend the underlying asset.",
       inputSchema: {
         vault: z
           .string()
           .regex(/^0x[a-fA-F0-9]{40}$/, "Must be a valid Ethereum address")
-          .describe("MetaMorpho vault address (from list_morpho_vaults)"),
+          .describe("Morpho vault address — MetaMorpho (v1) or Vault V2 (from list_morpho_vaults)"),
         amount: z
           .string()
           .describe("Amount of underlying asset to deposit (human-readable, e.g. '1000')"),
@@ -31,7 +33,7 @@ export function registerBuildVaultDeposit(server: McpServer) {
           .describe("Katana mainnet or Bokuto testnet"),
       },
     },
-    async ({ vault, amount, receiver, network }) => {
+    quoteSafe(async ({ vault, amount, receiver, network }) => {
       const net = network as NetworkName;
       const client = getClient(net);
       const chain = getChain(net);
@@ -39,28 +41,28 @@ export function registerBuildVaultDeposit(server: McpServer) {
 
       // Read vault metadata to get asset and preview shares
       const [asset, vaultSymbol, vaultDecimals] = await Promise.all([
-        client.readContract({ address: vaultAddr, abi: metaMorphoAbi, functionName: "asset" }),
-        client.readContract({ address: vaultAddr, abi: metaMorphoAbi, functionName: "symbol" }),
-        client.readContract({ address: vaultAddr, abi: metaMorphoAbi, functionName: "decimals" }),
+        withBackoff(() => client.readContract({ address: vaultAddr, abi: metaMorphoAbi, functionName: "asset" })),
+        withBackoff(() => client.readContract({ address: vaultAddr, abi: metaMorphoAbi, functionName: "symbol" })),
+        withBackoff(() => client.readContract({ address: vaultAddr, abi: metaMorphoAbi, functionName: "decimals" })),
       ]);
 
       const assetAddr = asset as Address;
 
       // Get asset info
       const [assetSymbol, assetDecimals] = await Promise.all([
-        client.readContract({ address: assetAddr, abi: erc20Abi, functionName: "symbol" }).catch(() => "UNKNOWN"),
-        client.readContract({ address: assetAddr, abi: erc20Abi, functionName: "decimals" }).catch(() => 18),
+        withBackoff(() => client.readContract({ address: assetAddr, abi: erc20Abi, functionName: "symbol" })).catch(() => "UNKNOWN"),
+        getTokenDecimals(client, assetAddr),
       ]);
 
       const assets = parseUnits(amount, assetDecimals as number);
 
       // Preview how many shares the user will receive
-      const previewShares = await client.readContract({
+      const previewShares = await withBackoff(() => client.readContract({
         address: vaultAddr,
         abi: metaMorphoAbi,
         functionName: "previewDeposit",
         args: [assets],
-      });
+      }));
 
       const data = encodeFunctionData({
         abi: metaMorphoAbi,
@@ -92,6 +94,6 @@ export function registerBuildVaultDeposit(server: McpServer) {
       return {
         content: [{ type: "text" as const, text: JSON.stringify(tx) }],
       };
-    }
+    }, { annotatePublicRpc: false })
   );
 }

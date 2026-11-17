@@ -5,6 +5,17 @@ import { getClient } from "../../clients.js";
 import { MORPHO_CONTRACTS, type NetworkName } from "../../config/contracts.js";
 import { metaMorphoAbi, metaMorphoFactoryAbi } from "../../abis/metamorpho.js";
 import { erc20Abi } from "../../abis/erc20.js";
+import { getTokenDecimals } from "./token-meta.js";
+import {
+  morphoQuery,
+  useMorphoApi,
+  formatWarnings,
+  pct,
+  usd,
+  IMPLAUSIBLE_APY,
+  type ApiAsset,
+  type ApiWarning,
+} from "./morpho-api.js";
 
 // ─── Static cache ────────────────────────────────────────────────────────────
 // Vault metadata (name, symbol, asset, curator, owner, decimals) is static.
@@ -43,7 +54,7 @@ async function fetchStaticData(
 
       const [assetSymbol, assetDecimals] = await Promise.all([
         client.readContract({ address: asset as Address, abi: erc20Abi, functionName: "symbol" }).catch(() => "N/A"),
-        client.readContract({ address: asset as Address, abi: erc20Abi, functionName: "decimals" }).catch(() => 18),
+        getTokenDecimals(client, asset as Address),
       ]);
 
       return {
@@ -68,18 +79,167 @@ const inputSchema = {
     .enum(["mainnet", "testnet"])
     .default("mainnet")
     .describe("Katana mainnet or Bokuto testnet"),
+  listedOnly: z
+    .boolean()
+    .default(false)
+    .describe("Only return vaults listed (curated) by Morpho. Unlisted vaults include personal and test vaults."),
+  includeV2: z
+    .boolean()
+    .default(true)
+    .describe("Include Morpho Vault V2s as well as MetaMorpho (v1) vaults (mainnet, via the Morpho API)"),
 };
+
+// ─── Morpho API path (Katana mainnet) ───────────────────────────────────────
+
+interface ApiVaultV1 {
+  address: string;
+  name: string;
+  symbol: string;
+  listed: boolean;
+  asset: ApiAsset;
+  state: {
+    totalAssets: string;
+    totalAssetsUsd: number | null;
+    fee: number;
+    apy: number | null;
+    netApy: number | null;
+    curator: string | null;
+    owner: string | null;
+  } | null;
+  warnings: ApiWarning[];
+}
+
+interface ApiVaultV2 {
+  address: string;
+  name: string;
+  symbol: string;
+  listed: boolean;
+  asset: ApiAsset;
+  totalAssets: string;
+  totalAssetsUsd: number | null;
+  liquidity: string;
+  liquidityUsd: number | null;
+  apy: number | null;
+  netApy: number | null;
+  performanceFee: number | null;
+  managementFee: number | null;
+  curator: { address: string } | null;
+  owner: { address: string } | null;
+  warnings: ApiWarning[];
+}
+
+function apyFlags(netApy: number | null, warnings: string[]): string[] {
+  return netApy !== null && netApy > IMPLAUSIBLE_APY
+    ? [...warnings, "UNVERIFIED:implausible_apy (likely a tiny or personal vault — do not rely on this APY)"]
+    : warnings;
+}
+
+async function listVaultsFromApi(listedOnly: boolean, includeV2: boolean) {
+  const v1Query = `query ($chainIds: [Int!]) {
+    vaults(first: 1000, where: { chainId_in: $chainIds }, orderBy: TotalAssetsUsd, orderDirection: Desc) {
+      items {
+        address name symbol listed
+        asset { address symbol decimals }
+        state { totalAssets totalAssetsUsd fee apy netApy curator owner }
+        warnings { type level }
+      }
+    }
+  }`;
+  const v2Query = `query ($chainIds: [Int!]) {
+    vaultV2s(first: 1000, where: { chainId_in: $chainIds }, orderBy: TotalAssetsUsd, orderDirection: Desc) {
+      items {
+        address name symbol listed
+        asset { address symbol decimals }
+        totalAssets totalAssetsUsd liquidity liquidityUsd apy netApy
+        performanceFee managementFee
+        curator { address } owner { address }
+        warnings { type level }
+      }
+    }
+  }`;
+
+  const [v1, v2] = await Promise.all([
+    morphoQuery<{ vaults: { items: ApiVaultV1[] } }>(v1Query),
+    includeV2 ? morphoQuery<{ vaultV2s: { items: ApiVaultV2[] } }>(v2Query) : null,
+  ]);
+
+  const v1Out = v1.vaults.items
+    .filter((v) => v.state && (!listedOnly || v.listed))
+    .map((v) => {
+      const st = v.state!;
+      return {
+        version: "v1",
+        address: v.address,
+        name: v.name,
+        symbol: v.symbol,
+        asset: v.asset,
+        tvl: formatUnits(BigInt(st.totalAssets), v.asset.decimals),
+        tvlUsd: usd(st.totalAssetsUsd),
+        apy: pct(st.apy),
+        netApy: pct(st.netApy),
+        fee: pct(st.fee, 1),
+        curator: st.curator,
+        owner: st.owner,
+        listed: v.listed,
+        warnings: apyFlags(st.netApy, formatWarnings(v.warnings)),
+      };
+    });
+
+  const v2Out = (v2?.vaultV2s.items ?? [])
+    .filter((v) => !listedOnly || v.listed)
+    .map((v) => ({
+      version: "v2",
+      address: v.address,
+      name: v.name,
+      symbol: v.symbol,
+      asset: v.asset,
+      tvl: formatUnits(BigInt(v.totalAssets), v.asset.decimals),
+      tvlUsd: usd(v.totalAssetsUsd),
+      liquidity: formatUnits(BigInt(v.liquidity), v.asset.decimals),
+      apy: pct(v.apy),
+      netApy: pct(v.netApy),
+      performanceFee: pct(v.performanceFee, 1),
+      managementFee: pct(v.managementFee, 1),
+      curator: v.curator?.address ?? null,
+      owner: v.owner?.address ?? null,
+      listed: v.listed,
+      warnings: apyFlags(v.netApy, formatWarnings(v.warnings)),
+    }));
+
+  const vaults = [...v1Out, ...v2Out].sort((a, b) => (b.tvlUsd ?? 0) - (a.tvlUsd ?? 0));
+
+  return {
+    source: "morpho-api",
+    totalVaults: vaults.length,
+    v1Count: v1Out.length,
+    v2Count: v2Out.length,
+    vaults,
+    note: "Sorted by TVL (USD). netApy includes rewards and fees. 'listed' = curated by Morpho. build_morpho_vault_deposit/withdraw support both v1 and V2 (ERC-4626). V2 vaults report 0 from maxWithdraw/maxRedeem — use the withdraw tool's liquidityCheck or get_morpho_vault_detail liquidity instead.",
+  };
+}
 
 export function registerListVaults(server: McpServer) {
   server.registerTool(
     "list_morpho_vaults",
     {
       description:
-        "Discover ALL MetaMorpho vaults on Katana. Scans on-chain CreateMetaMorpho events from the factory contract to find every vault deployed. Returns vault address, name, symbol, underlying asset, TVL (total deposited), curator, owner, and fee. No inputs required — use this to explore available Morpho vaults for passive lending.",
+        "Discover ALL Morpho vaults on Katana — MetaMorpho (v1) and Vault V2. On mainnet, reads the Morpho API (Katana only): address, name, asset, TVL in tokens and USD, APY and net APY, fees, curator, owner, whether Morpho lists the vault, and risk warnings (implausible APYs are flagged). Falls back to on-chain factory event scans (v1 only) if the API is unavailable, and on testnet. Use this to explore Morpho vaults for passive lending.",
       inputSchema,
     },
-    async ({ network }) => {
+    async ({ network, listedOnly, includeV2 }) => {
       const net = network as NetworkName;
+
+      if (useMorphoApi(net)) {
+        try {
+          const result = await listVaultsFromApi(listedOnly, includeV2);
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ network, ...result }, null, 2) }],
+          };
+        } catch {
+          // API unavailable — fall back to on-chain discovery below
+        }
+      }
+
       const client = getClient(net);
 
       // ── 1. Discover vaults (cached after first call) ───────────────
@@ -161,7 +321,7 @@ export function registerListVaults(server: McpServer) {
           {
             type: "text" as const,
             text: JSON.stringify(
-              { network, totalVaults: results.length, vaults: results },
+              { network, source: "rpc", totalVaults: results.length, vaults: results },
               null,
               2
             ),
