@@ -29,12 +29,48 @@ jobs:
   # Same release, pushed to AWS ECR for the GCP -> AWS move (katana-app-infra).
   # Skipped until the org variable AWS_ECR_ACCOUNT_ID is set. The GCP job above
   # is removed once production runs on AWS.
+  # Inlined copy of katana-network/github-workflows aws-ecr-release-image.yml:
+  # this repo is public and can't call a reusable workflow from a private repo.
+  # Auth: OIDC -> role github-push-katana-mcp (katana-app-infra aws/staging/ecr.tf).
+  # If the GCP job fails, use "Re-run failed jobs": ECR tags are immutable.
   ecr-push:
     if: vars.AWS_ECR_ACCOUNT_ID != ''
-    uses: katana-network/github-workflows/.github/workflows/aws-ecr-release-image.yml@main
-    with:
-      image_name: katana-mcp
-      dockerfile_path: packages/katana-mcp/Dockerfile
-      image_tag: ${{ inputs.tag || github.ref_name }}
-      checkout_ref: ${{ inputs.tag || github.ref_name }}
-      aws_account_id: ${{ vars.AWS_ECR_ACCOUNT_ID }}
+    runs-on: ubuntu-24.04-arm
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          submodules: recursive
+
+      - name: Resolve build provenance
+        id: provenance
+        run: |
+          echo "git_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ECR_ACCOUNT_ID }}:role/github-push-katana-mcp
+          aws-region: eu-west-1
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@7290e214a610b32bc0eef81748948b6d466a8783 # v2.2.0
+
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          file: packages/katana-mcp/Dockerfile
+          platforms: linux/arm64
+          push: true
+          provenance: false # plain image, not an index: ECS does not use attestations
+          tags: ${{ steps.ecr.outputs.registry }}/katana-mcp:${{ env.TAG }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.provenance.outputs.git_sha }}
+            org.opencontainers.image.version=${{ env.TAG }}
+          build-args: |
+            GIT_SHA=${{ steps.provenance.outputs.git_sha }}
+            BUILT_AT=${{ steps.provenance.outputs.built_at }}
