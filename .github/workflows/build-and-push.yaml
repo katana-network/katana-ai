@@ -25,3 +25,16 @@ jobs:
       image_tag: ${{ inputs.tag || github.ref_name }}
       checkout_ref: ${{ inputs.tag || github.ref_name }}
       platforms: linux/arm64
+
+  # Same release, pushed to AWS ECR for the GCP -> AWS move (katana-app-infra).
+  # Skipped until the org variable AWS_ECR_ACCOUNT_ID is set. The GCP job above
+  # is removed once production runs on AWS.
+  ecr-push:
+    if: vars.AWS_ECR_ACCOUNT_ID != ''
+    uses: katana-network/github-workflows/.github/workflows/aws-ecr-release-image.yml@main
+    with:
+      image_name: katana-mcp
+      dockerfile_path: packages/katana-mcp/Dockerfile
+      image_tag: ${{ inputs.tag || github.ref_name }}
+      checkout_ref: ${{ inputs.tag || github.ref_name }}
+      aws_account_id: ${{ vars.AWS_ECR_ACCOUNT_ID }}
