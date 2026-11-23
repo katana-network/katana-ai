@@ -29,12 +29,12 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "viem": "^2.54.6",
-    "zod": "^3.25.0"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@azure/identity": "^4.13.0",
     "@types/node": "^22.13.5",
-    "promptfoo": "^0.121.0",
+    "promptfoo": "^0.126.0",
     "typescript": "^5.7.3"
   },
   "engines": {
