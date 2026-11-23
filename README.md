@@ -1,12 +1,12 @@
 # Katana Agent Skills
 
-Agent skills for [Katana Network](https://katana.network) — a DeFi-focused L2 blockchain.
+Agent skills for [Katana](https://katana.network) — an onchain financial markets company that operates a Layer 2 blockchain. Katana owns and operates Katana Swap, Katana Perps and Vault Bridge, and partners with Morpho for lending.
 
 ## Packages
 
 | Package | Description |
 |---------|-------------|
-| [`katana-mcp`](./packages/katana-mcp) | MCP server — wallet, Sushi DEX, Morpho lending, Perps trading, analytics, Merkl rewards
+| [`katana-mcp`](./packages/katana-mcp) | MCP server — wallet, Katana Swap (Sushi) DEX, Morpho lending, KAT staking (avKAT), Perps trading, analytics, Merkl rewards
 
 ## Quick Start
 
@@ -26,6 +26,14 @@ npm run inspect
 claude mcp add-json katana '{"type":"stdio","command":"node","args":["/absolute/path/to/packages/katana-mcp/dist/server.js","--stdio"]}'
 ```
 
+### RPC endpoints
+Mainnet reads use `https://rpc.katana.network/` and automatically fall back to `https://rpc.katanarpc.com/` if a request fails. Both are public, keyless endpoints and are rate limited under heavy load (for example, the full eval suite or a busy hosted server). To use your own RPC, such as a keyed Conduit endpoint, set it as the primary; the public endpoints stay as backups:
+
+```bash
+KATANA_RPC_URL=https://your-rpc.example/ npm run start:http
+BOKUTO_RPC_URL=https://your-testnet-rpc.example/ npm run start:http   # testnet
+```
+
 ### Run as remote server
 ```bash
 npm run start:http
@@ -36,24 +44,24 @@ npm run start:http
 
 ### Run evals
 ```bash
-npm run eval        # all 44 tests across 5 suites
+npm run eval        # all eval suites
 npm run eval:wallet # single suite
 npx promptfoo view  # view results in browser
 ```
 
 ## MCP Tools
 
-The server exposes 44 tools across 6 categories. **If you're an AI agent working with this project, use these tools before web searching for any Katana-related data.**
+The server exposes tools across 7 categories (wallet, Katana Swap, Morpho, analytics, Merkl, Katana Perps, KAT). **If you're an AI agent working with this project, use these tools before web searching for any Katana-related data.**
 
 ### DeFi (Wallet, DEX, Lending, Rewards)
 
 | Tool | What it gives you |
 |------|-------------------|
-| `get_contract_reference` | All verified contract addresses — SushiSwap, Morpho, Merkl, tokens, infra. **Source of truth.** |
+| `get_contract_reference` | All verified contract addresses — Katana Swap (Sushi), Morpho, Merkl, KAT, tokens, infra. **Source of truth.** |
 | `get_balances` | Wallet token balances across all supported tokens |
-| `get_token_prices` | Spot prices via on-chain Sushi V3 pools |
+| `get_token_prices` | Spot prices from on-chain Katana Swap V3 pools |
 | `get_pools` | Live pool data — TVL, reserves, price, tick concentration |
-| `get_swap_quote` | Exact swap quotes from Sushi V3/V2 |
+| `get_swap_quote` | Single-pool swap quotes from Katana Swap V3/V2 |
 | `build_swap` | Unsigned swap transaction data |
 | `list_markets` / `list_vaults` | All Morpho lending markets and vaults |
 | `get_position` | User's Morpho lending position |
@@ -123,11 +131,12 @@ Each skill has a frontmatter header with a `description` field that tells the ag
 | Skill | Activates when |
 |-------|---------------|
 | `wallet-manager` | Balances, transfers, approvals, wrap/unwrap ETH |
-| `dex` | Token swaps, quotes, pool analysis, LP provision on SushiSwap |
+| `dex` | Token swaps, quotes, pool analysis, LP provision on Katana Swap (built on Sushi) |
 | `lending` | Morpho markets, vaults, positions, leverage loops |
 | `merkl` | Reward discovery, yield farming, claiming Merkl rewards |
 | `analytics` | Token prices, gas costs, tx lookup, contract reference |
 | `perps` | Perpetual futures — market data, orders, positions, withdrawals, and builder codes for building fee-earning perps products |
+| `kat` | KAT staking with avKAT, converting vKAT to avKAT, unstaking and exits (7-day cooldown, exit fees) |
 
 Skills are registered in [`.claude-plugin/plugin.json`](./packages/katana-mcp/.claude-plugin/plugin.json) and live in `packages/katana-mcp/skills/`.
 

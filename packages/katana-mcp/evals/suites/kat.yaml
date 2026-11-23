@@ -58,7 +58,7 @@ tests:
           const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
           const kf = o.kat.keyFunctions;
           return kf.votingEscrow.includes('createLock') && kf.votingEscrow.includes('beginWithdrawal')
-            && kf.vault.includes('deposit') && kf.vault.includes('redeem')
+            && kf.vault.includes('deposit') && kf.vault.includes('withdrawTokenId') && kf.vault.includes('depositTokenId')
             && kf.gaugeVoter.includes('vote') && kf.gaugeVoter.includes('reset');
 
   - description: "get_contract_reference — KAT has exit fee details"
@@ -112,4 +112,4 @@ tests:
       - type: javascript
         value: |
           const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
-          return o.kat && o.kat.note && o.kat.note.toLowerCase().includes('transferable');
+          return o.kat && o.kat.note && o.kat.note.toLowerCase().includes('transferable') && o.kat.note.toLowerCase().includes('sunset');

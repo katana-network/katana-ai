@@ -6,6 +6,7 @@ import { SUSHI_CONTRACTS, type NetworkName } from "../../config/contracts.js";
 import { sushiV3QuoterAbi } from "../../abis/sushi-v3-quoter.js";
 import { sushiV2RouterAbi } from "../../abis/sushi-v2-router.js";
 import { resolveToken, knownTokenList, V3_FEE_TIERS } from "./utils.js";
+import { ROUTING_NOTE, NO_DIRECT_POOL_NOTE } from "./routing.js";
 
 const inputSchema = {
   tokenIn: z
@@ -28,7 +29,7 @@ export function registerGetQuote(server: McpServer) {
     "get_swap_quote",
     {
       description:
-        "Get a swap quote from SushiSwap on Katana. Tries all V3 fee tiers (0.01%, 0.05%, 0.3%, 1%) and V2, returns the best price. Read-only — no transaction is built.",
+        "Get a single-pool swap quote from Katana Swap (built on Sushi). Tries all V3 fee tiers (0.01%, 0.05%, 0.3%, 1%) and the direct V2 pair, returns the best price. No multi-hop routing: routed swaps (as in the Katana app, via Everlong) need the user's own Everlong Swap API key. Read-only — no transaction is built.",
       inputSchema,
     },
     async ({ tokenIn, tokenOut, amountIn, network }) => {
@@ -146,6 +147,7 @@ export function registerGetQuote(server: McpServer) {
         amountIn,
         quotes,
         bestQuote: quotes[0] || null,
+        routing: quotes.length ? ROUTING_NOTE : { ...ROUTING_NOTE, noDirectPool: NO_DIRECT_POOL_NOTE },
       };
 
       return {

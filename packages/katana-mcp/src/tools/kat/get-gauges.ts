@@ -10,7 +10,7 @@ export function registerGetGauges(server: McpServer) {
     "get_kat_gauges",
     {
       description:
-        "Get all active gauges and their current vote weights. Shows which liquidity pools are receiving KAT emission incentives and the total voting power allocated to each. Useful for deciding how to allocate gauge votes.",
+        "SUNSET — gauge voting ended November 17, 2026; LP incentives are now allocated by the Katana Foundation, so these vote weights no longer direct incentives. Returns the legacy gauges and their recorded vote weights, for historical reference or for unwinding pre-sunset vKAT positions.",
       inputSchema: {
         activeOnly: z
           .boolean()

@@ -88,9 +88,9 @@ Common spender addresses (mainnet):
 
 | Protocol | Contract | Address |
 |----------|----------|---------|
-| Sushi V3 | SwapRouter | `0x4e1d81A3E627b9294532e990109e4c21d217376C` |
-| Sushi V3 | PositionManager | `0x2659C6085D26144117D904C46B48B6d180393d27` |
-| Sushi V2 | Router | `0x69cC349932ae18ED406eeB917d79b9b3033fB68E` |
+| Katana Swap (Sushi V3) | SwapRouter | `0x4e1d81A3E627b9294532e990109e4c21d217376C` |
+| Katana Swap (Sushi V3) | PositionManager | `0x2659C6085D26144117D904C46B48B6d180393d27` |
+| Katana Swap (Sushi V2) | Router | `0x69cC349932ae18ED406eeB917d79b9b3033fB68E` |
 | Morpho | Core | `0xD50F2DffFd62f94Ee4AEd9ca05C61d0753268aBc` |
 | Morpho | Bundler3 | `0xA8C5e23C9C0DF2b6fF716486c6bBEBB6661548C8` |
 

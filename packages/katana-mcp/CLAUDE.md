@@ -1,12 +1,12 @@
 # Katana MCP Server
 
-This is an MCP (Model Context Protocol) server for Katana Network — a DeFi-focused L2 blockchain.
+This is an MCP (Model Context Protocol) server for Katana Network. Katana is an onchain financial markets company that operates a Layer 2 blockchain.
 
 ## Key Facts
 - Katana mainnet Chain ID: 747474
 - Bokuto testnet Chain ID: 737373
 - Gas token: ETH
-- Core protocols: Sushi (DEX) + Morpho (lending)
+- Core apps: Katana Swap (DEX, built on Sushi), Katana Perps, Vault Bridge; lending through Katana's partner Morpho
 - WETH on Katana is a yield-generating vbToken (Vault Bridge ETH) that implements the WETH9 interface
 
 ## Architecture

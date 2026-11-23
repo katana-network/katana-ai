@@ -166,7 +166,7 @@ export function registerCreatePerpsOrder(server: McpServer) {
         if (finalClientOrderId) parameters.clientOrderId = finalClientOrderId;
 
         // Build EIP-712 typed data
-        const domain = getDomain(net);
+        const domain = await getDomain(net);
         const typedDataValue = buildOrderTypedData({
           nonce,
           wallet,

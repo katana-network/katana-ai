@@ -2,17 +2,17 @@
 
 ## Katana MCP Tools — USE THESE FIRST
 
-This project has a `katana-remote` MCP server connected with 27 tools for Katana Network (DeFi L2, chain ID 747474). **Before web searching for ANY Katana-related data, load and use the MCP tools.**
+This project has a `katana-remote` MCP server connected with tools for Katana Network (Katana's Layer 2 chain, chain ID 747474) — wallet, Katana Swap, Morpho, Merkl, KAT staking, Katana Perps and analytics. **Before web searching for ANY Katana-related data, load and use the MCP tools.**
 
 ### Key tools to know:
 
 | Tool | What it gives you |
 |------|-------------------|
-| `get_contract_reference` | All verified contract addresses — SushiSwap, Morpho, Merkl, tokens, infra. **This is the source of truth.** |
+| `get_contract_reference` | All verified contract addresses — Katana Swap (Sushi), Morpho, Merkl, KAT, tokens, infra. **This is the source of truth.** |
 | `get_balances` | Wallet token balances across all supported tokens |
-| `get_token_prices` | Spot prices via on-chain Sushi V3 pools |
+| `get_token_prices` | Spot prices from on-chain Katana Swap V3 pools |
 | `get_pools` | Live pool data — TVL, reserves, price, tick concentration |
-| `get_swap_quote` | Exact swap quotes from Sushi V3/V2 |
+| `get_swap_quote` | Single-pool swap quotes from Katana Swap V3/V2 |
 | `list_markets` / `list_vaults` | All Morpho lending markets and vaults |
 | `get_merkl_opportunities` | Incentivized yield opportunities with APRs |
 | `get_merkl_user_rewards` | Claimable Merkl rewards for a wallet |
@@ -52,5 +52,13 @@ Works with npm, yarn, or bun:
 yarn install && yarn build       # build the server
 yarn start:stdio                 # local/Claude Code transport
 yarn start:http                  # Streamable HTTP on :3001
-yarn eval                        # run all 44 eval tests
+yarn eval                        # run all eval suites
 ```
+
+## Commits & Pull Requests
+
+Releases are automated: merging to `main` runs semantic-release, which reads each commit message to pick the version and tag, and the tag builds the `katana-mcp` Docker image. So every commit message **and** every PR title must follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+- Start with a type: `feat`, `fix`, `perf`, `revert`, `docs`, `chore`, `build`, `ci`, `refactor`, `style`, `test` (optional scope, e.g. `fix(morpho): …`)
+- The subject after the colon must **not** start with an uppercase letter — `feat: add …`, not `feat: Add …` (CI's `validate-pr-title` enforces this)
+- `feat` → minor release, `fix` / `perf` / `revert` → patch release; the other types don't release

@@ -114,7 +114,7 @@ export function registerLiquidity(server: McpServer) {
     "build_add_liquidity_v3",
     {
       description:
-        "Build an unsigned transaction to add liquidity to a SushiSwap V3 pool on Katana. Creates a new concentrated liquidity position as an NFT. You need to specify tick range. Use get_pools first to find the current tick. User must approve the PositionManager to spend both tokens first.",
+        "Build an unsigned transaction to add liquidity to a Katana Swap V3 pool. Creates a new concentrated liquidity position as an NFT. You need to specify tick range. Use get_pools first to find the current tick. User must approve the PositionManager to spend both tokens first.",
       inputSchema: v3InputSchema,
     },
     async ({ tokenA, tokenB, amountA, amountB, fee, tickLower, tickUpper, recipient, deadlineMinutes, network }) => {
@@ -183,7 +183,7 @@ export function registerLiquidity(server: McpServer) {
     "build_add_liquidity_v2",
     {
       description:
-        "Build an unsigned transaction to add liquidity to a SushiSwap V2 pool on Katana. Simpler than V3 — full-range liquidity, no tick management. User must approve the V2 Router to spend both tokens first.",
+        "Build an unsigned transaction to add liquidity to a Katana Swap V2 pool. Simpler than V3 — full-range liquidity, no tick management. User must approve the V2 Router to spend both tokens first.",
       inputSchema: v2InputSchema,
     },
     async ({ tokenA, tokenB, amountA, amountB, slippageBps, recipient, deadlineMinutes, network }) => {

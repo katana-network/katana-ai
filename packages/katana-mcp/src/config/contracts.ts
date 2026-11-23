@@ -183,7 +183,11 @@ export function getToken(
   symbol: string
 ): TokenInfo | undefined {
   const tokens = getTokens(network);
-  return tokens[symbol.toUpperCase()];
+  if (tokens[symbol]) return tokens[symbol];
+  // Case-insensitive match so mixed-case symbols (avKAT, weETH, wstETH, jitoSOL, uSOL…) resolve
+  const wanted = symbol.toLowerCase();
+  const key = Object.keys(tokens).find((k) => k.toLowerCase() === wanted);
+  return key ? tokens[key] : undefined;
 }
 
 export function getTokenByAddress(
@@ -197,7 +201,7 @@ export function getTokenByAddress(
   );
 }
 
-// ─── Sushi DEX Contracts ────────────────────────────────────────────────────
+// ─── Katana Swap (built on Sushi) Contracts ────────────────────────────────────────────────────
 
 export const SUSHI_CONTRACTS = {
   mainnet: {
@@ -209,7 +213,6 @@ export const SUSHI_CONTRACTS = {
     v3QuoterV2: "0x92dea23ED1C683940fF1a2f8fE23FE98C5d3041c" as Address,
     v3SwapRouter: "0x4e1d81A3E627b9294532e990109e4c21d217376C" as Address,
     v3TickLens: "0x35DC3E13469E980c37b6F288BBb9822B1f9bD435" as Address,
-    routeProcessor7: "0x3Ced11c610556e5292fBC2e75D68c3899098C14C" as Address,
   },
 } as const;
 
@@ -298,12 +301,16 @@ export const PRICE_FEEDS = {
 
 // ─── Katana Perps (Perpetual Futures DEX) ──────────────────────────────────
 
+// Exchange_v2. These are fallbacks only: tools read the current address live from
+// GET /v1/exchange → exchangeContractAddress (see getExchangeInfo in tools/perps/auth.ts).
 export const PERPS_CONTRACTS = {
   mainnet: {
-    exchange: "0x835Ba5b1B202773A94Daaa07168b26B22584637a" as Address,
+    exchange: "0x62230CeA619F734cc215bB8074bbF07bE4Eb633e" as Address,
+    quoteToken: "0x203A662b0BD271A6ed5a60EdFbd04bFce608FD36" as Address, // vbUSDC, 6 decimals
   },
   testnet: {
-    exchange: "0xcE3765616b9e354E64530875f492dc4DfddF2118" as Address,
+    exchange: "0x92d3072dDe1aD3e9B7895500F504aA5e664E71d3" as Address,
+    quoteToken: undefined as Address | undefined, // read from /v1/exchange → quoteTokenAddress
   },
 } as const;
 
@@ -318,17 +325,19 @@ export const PERPS_API = {
   },
 } as const;
 
+// Matches @katanaperps/katana-perps-sdk 2.x (EIP_712_DOMAIN_NAME / EIP_712_DOMAIN_VERSION[_SANDBOX]).
+// verifyingContract is a fallback — getDomain() uses the live exchangeContractAddress.
 export const PERPS_EIP712_DOMAIN = {
   mainnet: {
     name: "KatanaPerps" as const,
-    version: "1.0.0" as const,
+    version: "2.0.0" as const,
     chainId: 747474,
-    verifyingContract: "0x835Ba5b1B202773A94Daaa07168b26B22584637a" as Address,
+    verifyingContract: "0x62230CeA619F734cc215bB8074bbF07bE4Eb633e" as Address,
   },
   testnet: {
     name: "KatanaPerps" as const,
-    version: "1.0.0-sandbox" as const,
+    version: "2.0.0-sandbox" as const,
     chainId: 737373,
-    verifyingContract: "0xcE3765616b9e354E64530875f492dc4DfddF2118" as Address,
+    verifyingContract: "0x92d3072dDe1aD3e9B7895500F504aA5e664E71d3" as Address,
   },
 } as const;
