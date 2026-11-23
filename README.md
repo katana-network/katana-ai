@@ -1,6 +1,6 @@
 # Katana Agent Skills
 
-Agent skills for [Katana Network](https://katana.network) — a DeFi-focused L2 blockchain.
+Agent skills for [Katana](https://katana.network) — an onchain financial markets company that operates a Layer 2 blockchain. Katana owns and operates Katana Swap, Katana Perps and Vault Bridge, and partners with Morpho for lending.
 
 ## Packages
 
@@ -59,9 +59,9 @@ The server exposes tools across 7 categories (wallet, Katana Swap, Morpho, analy
 |------|-------------------|
 | `get_contract_reference` | All verified contract addresses — Katana Swap (Sushi), Morpho, Merkl, KAT, tokens, infra. **Source of truth.** |
 | `get_balances` | Wallet token balances across all supported tokens |
-| `get_token_prices` | Spot prices via on-chain Sushi V3 pools |
+| `get_token_prices` | Spot prices from on-chain Katana Swap V3 pools |
 | `get_pools` | Live pool data — TVL, reserves, price, tick concentration |
-| `get_swap_quote` | Exact swap quotes from Sushi V3/V2 |
+| `get_swap_quote` | Single-pool swap quotes from Katana Swap V3/V2 |
 | `build_swap` | Unsigned swap transaction data |
 | `list_markets` / `list_vaults` | All Morpho lending markets and vaults |
 | `get_position` | User's Morpho lending position |

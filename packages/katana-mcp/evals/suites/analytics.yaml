@@ -74,6 +74,20 @@ tests:
       - type: javascript
         value: "output.toLowerCase().includes('error') || output.toLowerCase().includes('not found')"
 
+  - description: "get_contract_reference — Everlong swap routing (user brings own API key)"
+    vars:
+      prompt: '{"tool": "get_contract_reference", "args": {}}'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: |
+          const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c);
+          const r = o.swapRouting;
+          return !!(r && r.swapApi === 'https://swap.foreverlong.io/v1/swap'
+            && /x-api-key/.test(r.apiKey) && /their own/.test(r.apiKey)
+            && /router\.foreverlong\.io/.test(r.note) && !r.routerAddress
+            && o.sushi && /Katana Swap/.test(o.sushi.name) && !('routeProcessor7' in o.sushi));
+
   # Replace 0x53569024dd16accf34a245da6c38c292d458d45bca3b8d8e9ff18170555a964f with a real mined tx hash from katanascan.io
   - description: "tx_lookup — real transaction"
     vars:

@@ -36,7 +36,7 @@ export function registerGetGasPrice(server: McpServer) {
         { label: "ETH transfer", gasLimit: 21000n },
         { label: "ERC20 transfer", gasLimit: 65000n },
         { label: "ERC20 approve", gasLimit: 46000n },
-        { label: "Sushi V3 swap", gasLimit: 200000n },
+        { label: "Katana Swap V3 swap", gasLimit: 200000n },
         { label: "Morpho supply", gasLimit: 250000n },
         { label: "Morpho borrow", gasLimit: 300000n },
       ];

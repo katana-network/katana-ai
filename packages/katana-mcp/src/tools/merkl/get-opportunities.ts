@@ -71,7 +71,7 @@ export function registerGetMerklOpportunities(server: McpServer) {
     "get_merkl_opportunities",
     {
       description:
-        "Get all incentivized DeFi opportunities on Katana with reward APRs from Merkl. Shows reward campaigns for Sushi V3 pools and Morpho markets/vaults. Returns TVL, total APR (native + reward), daily rewards in USD, and reward token details. Use alongside list_morpho_markets or get_pools to see full yield picture (native APY + reward APR).",
+        "Get all incentivized DeFi opportunities on Katana with reward APRs from Merkl. Shows reward campaigns for Katana Swap V3 pools and Morpho markets/vaults. Returns TVL, total APR (native + reward), daily rewards in USD, and reward token details. Use alongside list_morpho_markets or get_pools to see full yield picture (native APY + reward APR).",
       inputSchema,
     },
     async ({ protocol, action, limit }) => {

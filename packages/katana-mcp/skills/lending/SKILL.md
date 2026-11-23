@@ -11,7 +11,7 @@ metadata:
 
 # Lending Advisor — Morpho on Katana
 
-Lending, borrowing, leveraged loops, and vault deposits on Morpho Blue on Katana Network.
+Lending, borrowing, leveraged loops, and vault deposits on Morpho Blue on Katana Network. Katana partners with Morpho for lending — Morpho is an independent protocol, not owned or operated by Katana.
 
 ## Morpho Blue Overview
 

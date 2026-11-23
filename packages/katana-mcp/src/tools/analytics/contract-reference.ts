@@ -3,7 +3,16 @@ import { getExitParams } from "../kat/exit-params.js";
 
 const REFERENCE = {
   chainId: 747474,
+  swapRouting: {
+    note: "The Katana app routes swaps through Everlong: routes and minimum amounts are computed offchain by the Everlong Swap API and executed by the Everlong Router. The router address can change — fetch the current one from https://router.foreverlong.io rather than hardcoding it. Single-pool swaps through Katana Swap V3SwapRouter/V3QuoterV2 still work.",
+    swapApi: "https://swap.foreverlong.io/v1/swap",
+    guide: "https://router.foreverlong.io/swap-api/guide",
+    apiKey: "Required (x-api-key header; missing or invalid key → 401). Keys are by request — users must obtain their own: https://router.foreverlong.io/swap-api/guide#id-1.-obtain-an-api-key. This MCP server does not provide one.",
+    usage: "Params: tokenIn, tokenOut, amountIn (base units), recipient, slippage. Check status == 'Ok' before sending; don't modify the returned calldata; approve the Everlong router for tokenIn first.",
+    legacySushiRouting: { redSnwapper: "0xAC4c6e212A361c968F1725b4d055b47E63F80b75", routeProcessor7: "0x3Ced11c610556e5292fBC2e75D68c3899098C14C", note: "No longer used by the Katana app" },
+  },
   sushi: {
+    name: "Katana Swap (built on Sushi) — single-pool swaps and LP",
     v3Factory: "0x203e8740894c8955cB8950759876d7E7E45E04c1",
     v3PositionManager: "0x2659C6085D26144117D904C46B48B6d180393d27",
     v3SwapRouter: "0x4e1d81A3E627b9294532e990109e4c21d217376C",
@@ -113,7 +122,7 @@ export function registerContractReference(server: McpServer) {
         exitFee = {
           cooldown: `${params.cooldownDays} days (${params.cooldownSeconds} seconds)`,
           minFee: `${params.minFeePercent} (${params.minFeeBps} bps) — after full cooldown`,
-          maxFee: `${params.maxFeePercent} (${params.maxFeeBps} bps) — immediate rage quit`,
+          maxFee: `${params.maxFeePercent} (${params.maxFeeBps} bps) — instant exit (withdraw immediately)`,
           formula: `fee = ${params.maxFeePercent} - ((${params.maxFeePercent} - ${params.minFeePercent}) × daysWaited / ${params.cooldownDays})`,
           source: "live from ExitQueue contract",
         };

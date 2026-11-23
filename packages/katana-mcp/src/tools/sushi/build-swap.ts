@@ -6,6 +6,7 @@ import { sushiV3RouterAbi } from "../../abis/sushi-v3-router.js";
 import { sushiV2RouterAbi } from "../../abis/sushi-v2-router.js";
 import { getChain } from "../../config/chains.js";
 import { resolveToken, knownTokenList } from "./utils.js";
+import { ROUTING_NOTE } from "./routing.js";
 
 const inputSchema = {
   tokenIn: z
@@ -32,7 +33,7 @@ const inputSchema = {
   version: z
     .enum(["v3", "v2"])
     .default("v3")
-    .describe("Use SushiSwap V3 or V2 router. Default: v3"),
+    .describe("Use the Katana Swap V3 or V2 router. Default: v3"),
   deadlineMinutes: z
     .coerce.number()
     .default(20)
@@ -48,7 +49,7 @@ export function registerBuildSwap(server: McpServer) {
     "build_swap",
     {
       description:
-        "Build an unsigned SushiSwap transaction on Katana. Supports V3 (exactInputSingle) and V2 (swapExactTokensForTokens). Returns unsigned tx data — the user must sign and send. Important: user must approve the router to spend tokenIn first (use build_approve).",
+        "Build an unsigned single-pool swap on Katana Swap (built on Sushi). Supports V3 (exactInputSingle) and V2 (swapExactTokensForTokens); no multi-hop routing — routed swaps via Everlong need the user's own Everlong Swap API key. Returns unsigned tx data — the user must sign and send. Important: user must approve the router to spend tokenIn first (use build_approve).",
       inputSchema,
     },
     async ({ tokenIn, tokenOut, amountIn, recipient, slippageBps, fee, version, deadlineMinutes, network }) => {
@@ -103,9 +104,10 @@ export function registerBuildSwap(server: McpServer) {
           data,
           value: "0",
           chainId: chain.id,
-          description: `Swap ${amountIn} ${inToken.symbol} → ${outToken.symbol} via SushiSwap V3 (fee: ${fee / 10000}%)`,
+          description: `Swap ${amountIn} ${inToken.symbol} → ${outToken.symbol} via Katana Swap V3 (fee: ${fee / 10000}%)`,
           note: "Get a quote first with get_swap_quote, then set amountOutMinimum based on slippage tolerance. User must approve the V3 router to spend tokenIn first.",
           routerAddress: sushi.v3SwapRouter,
+          routing: ROUTING_NOTE,
         };
 
         return {
@@ -130,9 +132,10 @@ export function registerBuildSwap(server: McpServer) {
           data,
           value: "0",
           chainId: chain.id,
-          description: `Swap ${amountIn} ${inToken.symbol} → ${outToken.symbol} via SushiSwap V2`,
+          description: `Swap ${amountIn} ${inToken.symbol} → ${outToken.symbol} via Katana Swap V2`,
           note: "User must approve the V2 router to spend tokenIn first.",
           routerAddress: sushi.v2Router,
+          routing: ROUTING_NOTE,
         };
 
         return {

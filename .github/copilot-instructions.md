@@ -2,7 +2,7 @@
 
 ## Katana MCP Tools — USE THESE FIRST
 
-This project has a `katana-remote` MCP server connected with tools for Katana Network (DeFi L2, chain ID 747474) — wallet, Katana Swap, Morpho, Merkl, KAT staking, Katana Perps and analytics. **Before web searching for ANY Katana-related data, load and use the MCP tools.**
+This project has a `katana-remote` MCP server connected with tools for Katana Network (Katana's Layer 2 chain, chain ID 747474) — wallet, Katana Swap, Morpho, Merkl, KAT staking, Katana Perps and analytics. **Before web searching for ANY Katana-related data, load and use the MCP tools.**
 
 ### Key tools to know:
 
@@ -10,9 +10,9 @@ This project has a `katana-remote` MCP server connected with tools for Katana Ne
 |------|-------------------|
 | `get_contract_reference` | All verified contract addresses — Katana Swap (Sushi), Morpho, Merkl, KAT, tokens, infra. **This is the source of truth.** |
 | `get_balances` | Wallet token balances across all supported tokens |
-| `get_token_prices` | Spot prices via on-chain Sushi V3 pools |
+| `get_token_prices` | Spot prices from on-chain Katana Swap V3 pools |
 | `get_pools` | Live pool data — TVL, reserves, price, tick concentration |
-| `get_swap_quote` | Exact swap quotes from Sushi V3/V2 |
+| `get_swap_quote` | Single-pool swap quotes from Katana Swap V3/V2 |
 | `list_markets` / `list_vaults` | All Morpho lending markets and vaults |
 | `get_merkl_opportunities` | Incentivized yield opportunities with APRs |
 | `get_merkl_user_rewards` | Claimable Merkl rewards for a wallet |

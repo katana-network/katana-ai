@@ -31,7 +31,7 @@ export function registerGetTokenPrices(server: McpServer) {
     "get_token_prices",
     {
       description:
-        "Get current spot prices for Katana tokens using Sushi V3 pool data. Prices are quoted in USD (via USDC/USDT pools). Tokens without direct stablecoin pools are priced through WETH. Returns price, source pool, and liquidity for each token.",
+        "Get current spot prices for Katana tokens using Katana Swap V3 pool data. Prices are quoted in USD (via USDC/USDT pools). Tokens without direct stablecoin pools are priced through WETH. Returns price, source pool, and liquidity for each token.",
       inputSchema,
     },
     async ({ tokens, network }) => {

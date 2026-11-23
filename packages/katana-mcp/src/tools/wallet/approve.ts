@@ -31,7 +31,7 @@ export function registerApprove(server: McpServer) {
           .string()
           .regex(/^0x[a-fA-F0-9]{40}$/, "Must be a valid Ethereum address")
           .describe(
-            "Address of the contract to approve (e.g. Sushi V3 Router, Morpho)"
+            "Address of the contract to approve (e.g. Katana Swap V3 Router, Morpho)"
           ),
         amount: z
           .string()

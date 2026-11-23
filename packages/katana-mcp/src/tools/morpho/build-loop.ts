@@ -67,7 +67,7 @@ const inputSchema = {
     .coerce.number()
     .int()
     .default(3000)
-    .describe("Sushi V3 fee tier for the swap (default 3000 = 0.3%)"),
+    .describe("Katana Swap V3 fee tier for the swap (default 3000 = 0.3%)"),
   network: z
     .enum(["mainnet", "testnet"])
     .default("mainnet")

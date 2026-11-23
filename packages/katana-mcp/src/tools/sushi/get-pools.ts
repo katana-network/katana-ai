@@ -267,7 +267,7 @@ export function registerGetPools(server: McpServer) {
     "get_pools",
     {
       description:
-        "Discover and analyze SushiSwap V3 pools on Katana. Two modes: (1) Omit tokenA/tokenB to discover ALL pools across known token pairs with basic info (price, reserves, fee tier). (2) Provide both tokenA and tokenB for deep analysis of a specific pair including tick concentration and liquidity distribution.",
+        "Discover and analyze Katana Swap (built on Sushi) V3 pools. Two modes: (1) Omit tokenA/tokenB to discover ALL pools across known token pairs with basic info (price, reserves, fee tier). (2) Provide both tokenA and tokenB for deep analysis of a specific pair including tick concentration and liquidity distribution.",
       inputSchema,
     },
     async ({ tokenA, tokenB, tickDepth, network }) => {

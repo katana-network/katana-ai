@@ -201,7 +201,7 @@ export function getTokenByAddress(
   );
 }
 
-// ─── Sushi DEX Contracts ────────────────────────────────────────────────────
+// ─── Katana Swap (built on Sushi) Contracts ────────────────────────────────────────────────────
 
 export const SUSHI_CONTRACTS = {
   mainnet: {
@@ -213,7 +213,6 @@ export const SUSHI_CONTRACTS = {
     v3QuoterV2: "0x92dea23ED1C683940fF1a2f8fE23FE98C5d3041c" as Address,
     v3SwapRouter: "0x4e1d81A3E627b9294532e990109e4c21d217376C" as Address,
     v3TickLens: "0x35DC3E13469E980c37b6F288BBb9822B1f9bD435" as Address,
-    routeProcessor7: "0x3Ced11c610556e5292fBC2e75D68c3899098C14C" as Address,
   },
 } as const;
 

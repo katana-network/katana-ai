@@ -31,6 +31,8 @@ tests:
         value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); Array.isArray(o.quotes) && o.quotes.length > 0"
       - type: javascript
         value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.bestQuote !== null && parseFloat(o.bestQuote.amountOut) > 0"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); !!(o.routing && /single-pool/i.test(o.routing.scope) && /Everlong/.test(o.routing.routedSwaps) && /own/.test(o.routing.routedSwaps) && !o.routing.noDirectPool)"
 
   - description: "get_swap_quote — WETH to USDC (reverse)"
     vars:
@@ -67,6 +69,8 @@ tests:
         value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.chainId === 747474"
       - type: javascript
         value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.data.startsWith('0x')"
+      - type: javascript
+        value: "const _c = JSON.parse(output); const o = JSON.parse(Array.isArray(_c) ? _c[0].text : _c); o.description.includes('Katana Swap V3') && !/SushiSwap/.test(o.description) && !!o.routing && /Everlong/.test(o.routing.routedSwaps)"
 
   - description: "build_swap — V2 targets V2 router"
     vars:

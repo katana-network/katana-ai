@@ -6,12 +6,24 @@ model: opus
 license: MIT
 metadata:
   author: katana
-  version: '1.0.0'
+  version: '1.1.0'
 ---
 
 # Swap Planner — Katana Swap (built on Sushi)
 
-Token swaps, trade quoting, pool analysis, and liquidity provision on Katana Swap (V3 + V2) on Katana Network. Katana Swap is Katana's DEX, built on Sushi's deployment on Katana — the contracts are Sushi contracts, so "Sushi", "SushiSwap" and "Katana Swap" all refer to the same venue.
+Token swaps, trade quoting, pool analysis, and liquidity provision on Katana Swap (V3 + V2) on Katana Network. Katana Swap is Katana's DEX, owned and operated by Katana and built on Sushi — the contracts are Sushi contracts, so if a user says "Sushi" or "SushiSwap" they mean Katana Swap. In everything you show the user, call it **Katana Swap** ("built on Sushi" is fine as context). Link users to `https://app.katana.network/pools` for swaps and pools — not to Sushi's site or `dex.katana.network`.
+
+## Routing: single-pool tools vs Everlong
+
+These tools quote and swap through **one pool** (a V3 fee tier or the direct V2 pair). They do not route across multiple pools.
+
+The Katana app routes swaps through **Everlong**: routes and minimum amounts are computed offchain by the Everlong Swap API, and the Everlong Router executes them. Routed swaps can price better for large trades or pairs without a deep direct pool.
+
+- **Routed swaps need the user's own Everlong Swap API key.** This MCP server does not have one. If the user wants routed swaps (or no direct pool exists), tell them they must request a key themselves: https://router.foreverlong.io/swap-api/guide#id-1.-obtain-an-api-key
+- With a key: `GET https://swap.foreverlong.io/v1/swap` with header `x-api-key` and params `tokenIn`, `tokenOut`, `amountIn` (base units), `recipient`, `slippage`. Check `status == "Ok"` before sending, never modify the returned calldata, and approve the Everlong router for `tokenIn` first. Missing or invalid key → 401.
+- **Don't hardcode the Everlong Router address** — it changes when Everlong updates its router. Fetch the current one from https://router.foreverlong.io
+- Without a key, the router can only be called with a route and minimum amounts you compute yourself (your own routing algorithm).
+- The old Sushi routing contracts (RedSnwapper `0xAC4c…0b75`, RouteProcessor7 `0x3Ced…C14C`) are no longer used by the Katana app.
 
 ## Katana Swap Overview
 
@@ -45,7 +57,7 @@ Get the best swap quote across all V3 fee tiers and V2. Read-only — no transac
 - `amountIn` (required): amount to sell in human-readable units (e.g. `"1000"` for 1000 USDC)
 - `network`: `"mainnet"` | `"testnet"`
 
-Returns quotes sorted best-first with expected output, price impact, fee tier, and route version. **Always call this before building a swap** to find the optimal fee tier and show the user expected output.
+Returns quotes sorted best-first with expected output, fee tier, and route version, plus a `routing` note. **Always call this before building a swap** to find the optimal fee tier and show the user expected output. If no pool returns a quote, the response includes `routing.noDirectPool`: suggest two swaps through WETH or USDC, or routed swaps with the user's own Everlong API key.
 
 ### build_swap
 
@@ -65,7 +77,7 @@ Build an unsigned swap transaction.
 
 ### get_pools
 
-Deep analysis of Katana Swap (Sushi V3) pools for a token pair.
+Deep analysis of Katana Swap V3 pools for a token pair.
 
 - `tokenA` (required): first token — symbol or address
 - `tokenB` (required): second token — symbol or address
@@ -145,6 +157,8 @@ Always show the user: expected output amount, minimum output (after slippage), a
 
 ## Common Mistakes
 
+- **Offering routed swaps through this server.** These tools are single-pool only. For Everlong routing the user must get their own API key — say so rather than implying the MCP can route.
+- **Calling it SushiSwap or linking to Sushi.** Say Katana Swap and link `https://app.katana.network/pools`.
 - **Using a fee tier without quoting first.** Always call `get_swap_quote` before `build_swap` — it returns the best fee tier across all V3 tiers and V2. Hardcoding `3000` may route through a worse pool.
 - **Invalid tick ranges for V3 LP.** `tickLower` and `tickUpper` must be divisible by the fee tier's tickSpacing (1 for 0.01%, 10 for 0.05%, 60 for 0.3%, 200 for 1%). Non-divisible ticks will revert on-chain. Use `get_pools` to get the current tick and calculate valid boundaries.
 - **Approving the wrong router.** V3 swaps need approval for SwapRouter (`0x4e1d81A3E627b9294532e990109e4c21d217376C`), V3 LP needs PositionManager (`0x2659C6085D26144117D904C46B48B6d180393d27`), V2 uses V2 Router (`0x69cC349932ae18ED406eeB917d79b9b3033fB68E`). Mixing these up means the tx will revert with an allowance error.

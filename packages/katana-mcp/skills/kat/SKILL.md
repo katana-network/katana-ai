@@ -6,7 +6,7 @@ model: opus
 license: MIT
 metadata:
   author: katana
-  version: '2.0.0'
+  version: '2.1.0'
 ---
 
 # KAT Token — Katana Network
@@ -37,6 +37,26 @@ A share of the revenue from **Katana Swap** (built on Sushi), **Katana Perps**, 
 - Rewards depend on network usage (more trading, bridging and activity → more buybacks). They are variable and not guaranteed.
 - Buybacks currently follow a scheduled process; fully automated onchain buybacks are planned.
 - Rewards come from revenue-funded buybacks, **not** from token emissions, gauge voting, or vote incentives.
+- Don't describe avKAT as guaranteed yield. Say rewards for KAT stakers are "compounded into avKAT".
+- Epochs are timed by the Clock contract: `epochDuration()` = 1,209,600 s (**14 days**) at time of writing — read it live before quoting.
+
+**Current revenue share to KAT buybacks** (current split; may change, and actual buybacks vary with network activity):
+
+| Source | Share to buybacks |
+|---|---|
+| Katana Swap | 50% |
+| Katana Perps | 5% |
+| Vault Bridge | 5% |
+| Sequencer fees | 30% |
+
+**Old vs new avKAT** (the avKAT contract and address did not change):
+
+| | Before Nov 17, 2026 | Now |
+|---|---|---|
+| How it earns | Voted through vKAT to earn fees | Protocol revenue, no voting |
+| Yield sources | Sushi (now Katana Swap) fees only | Katana Swap, Katana Perps, Vault Bridge, sequencer fees |
+| Yield handling | Fees autocompounded into avKAT | Revenue buys KAT on the open market; 100% compounded into avKAT |
+| Exit cooldown | 45 days | 7 days |
 
 ## Contract Addresses (Mainnet)
 
@@ -89,7 +109,7 @@ MAX_FEE_BPS = 2500   MIN_FEE_BPS = 0   COOLDOWN = 604800 s (7 days)   BPS_DENOMI
 
 **The on-chain ExitQueue is the source of truth.** Its values are readable via `cooldown()`, `feePercent()` (max, bps) and `minFeePercent()` (min, bps), and are returned live as `exitFee` by `get_contract_reference` and as `exitParams` by `build_kat_begin_withdrawal` / `build_kat_withdraw`. Before quoting a fee or cooldown to a user, check the live values. If they differ from the schedule above (for example around the November 17, 2026 transition, or after a later parameter change), tell the user and compute the fee from the live values using the same linear formula.
 
-**Each exit keeps the terms it was queued with.** `queue(tokenId)` stores the cooldown and fee parameters in effect when `beginWithdrawal` ran. An exit started under older terms (e.g. a 60-day cooldown with a 2.5% minimum fee) is not moved onto the new schedule — for a queued exit, use `calculateFee(tokenId)` rather than the table above.
+**Each exit keeps the terms it was queued with.** `queue(tokenId)` stores the cooldown and fee parameters in effect when `beginWithdrawal` ran. An exit started under older terms (e.g. the pre-November 17 60-day cooldown with a 2.5% minimum fee) is not moved onto the new schedule — for a queued exit, use `calculateFee(tokenId)` rather than the table above.
 
 | Exit path | Time | Fee |
 |---|---|---|
@@ -227,7 +247,7 @@ totalVotingPowerCast() → uint256        // NOT totalWeight
 
 `weights()`, `totalWeight()`, `isAlive()`, `isGauge()`, `getActiveGauges()` and `poolForGauge()` do not exist. Gauge addresses are the pool addresses themselves (`token0()`, `token1()`, `fee()` work on them; `fee()` reverts on V2 pools).
 
-LP incentives for Katana Swap pools are now allocated by the **Katana Foundation**, not by gauge votes.
+LP incentives for Katana Swap pools are now allocated by the **Katana Foundation**, not by gauge votes. Links to pools: `https://app.katana.network/pools`.
 
 ## Cross-References
 
