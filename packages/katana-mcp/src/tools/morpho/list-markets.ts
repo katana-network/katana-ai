@@ -5,7 +5,18 @@ import { getClient } from "../../clients.js";
 import { MORPHO_CONTRACTS, type NetworkName } from "../../config/contracts.js";
 import { morphoAbi } from "../../abis/morpho.js";
 import { erc20Abi } from "../../abis/erc20.js";
+import { getTokenDecimals } from "./token-meta.js";
 import { getTokenUsdPrice } from "../analytics/price-utils.js";
+import {
+  morphoQuery,
+  useMorphoApi,
+  MARKET_FIELDS,
+  formatWarnings,
+  lltvPct,
+  pct,
+  usd,
+  type ApiMarket,
+} from "./morpho-api.js";
 
 // ─── Static cache ────────────────────────────────────────────────────────────
 // Market params and token metadata are immutable once created.
@@ -42,9 +53,9 @@ async function fetchStaticData(
       const [loanSymbol, loanDecimals, collateralSymbol, collateralDecimals] =
         await Promise.all([
           client.readContract({ address: params.loanToken as Address, abi: erc20Abi, functionName: "symbol" }).catch(() => "N/A"),
-          client.readContract({ address: params.loanToken as Address, abi: erc20Abi, functionName: "decimals" }).catch(() => 18),
+          getTokenDecimals(client, params.loanToken as Address),
           client.readContract({ address: params.collateralToken as Address, abi: erc20Abi, functionName: "symbol" }).catch(() => "N/A"),
-          client.readContract({ address: params.collateralToken as Address, abi: erc20Abi, functionName: "decimals" }).catch(() => 18),
+          getTokenDecimals(client, params.collateralToken as Address),
         ]);
 
       return {
@@ -74,18 +85,84 @@ const inputSchema = {
     .max(1000000)
     .default(100)
     .describe("Minimum total supply in USD to include a market (default 100). Set to 0 to show all."),
+  listedOnly: z
+    .boolean()
+    .default(false)
+    .describe("Only return markets listed (curated) by Morpho. Unlisted markets are permissionless and may carry higher risk."),
 };
+
+// ─── Morpho API path (Katana mainnet) ───────────────────────────────────────
+
+async function listMarketsFromApi(minSupplyUsd: number, listedOnly: boolean) {
+  const data = await morphoQuery<{ markets: { items: ApiMarket[] } }>(
+    `query ($chainIds: [Int!]) {
+      markets(first: 1000, where: { chainId_in: $chainIds }, orderBy: SupplyAssetsUsd, orderDirection: Desc) {
+        items { ${MARKET_FIELDS} }
+      }
+    }`
+  );
+
+  const all = data.markets.items.filter((m) => m.state);
+  // Same dead-market rule as the on-chain path: drop markets with no supply and no borrow
+  const live = all.filter((m) => m.state!.supplyAssets !== "0" || m.state!.borrowAssets !== "0");
+  const kept = live.filter(
+    (m) => (!listedOnly || m.listed) && (minSupplyUsd <= 0 || (m.state!.supplyAssetsUsd ?? Infinity) >= minSupplyUsd)
+  );
+
+  const markets = kept.map((m) => {
+    const st = m.state!;
+    const d = m.loanAsset.decimals;
+    return {
+      id: m.marketId,
+      loanToken: m.loanAsset.symbol,
+      collateralToken: m.collateralAsset?.symbol ?? "none (idle)",
+      lltv: lltvPct(m.lltv),
+      totalSupply: formatUnits(BigInt(st.supplyAssets), d),
+      totalBorrow: formatUnits(BigInt(st.borrowAssets), d),
+      liquidity: formatUnits(BigInt(st.liquidityAssets), d),
+      utilization: `${(st.utilization * 100).toFixed(2)}%`,
+      supplyUsd: usd(st.supplyAssetsUsd),
+      borrowUsd: usd(st.borrowAssetsUsd),
+      supplyApy: pct(st.supplyApy),
+      netSupplyApy: pct(st.netSupplyApy),
+      borrowApy: pct(st.borrowApy),
+      netBorrowApy: pct(st.netBorrowApy),
+      listed: m.listed,
+      warnings: formatWarnings(m.warnings),
+    };
+  });
+
+  return {
+    source: "morpho-api",
+    totalMarkets: markets.length,
+    filteredOut: live.length - markets.length,
+    markets,
+    note: "APYs are current rates; netSupplyApy/netBorrowApy include rewards. 'warnings' are Morpho risk flags (RED = serious). Unlisted markets are permissionless — check warnings before using one.",
+  };
+}
 
 export function registerListMarkets(server: McpServer) {
   server.registerTool(
     "list_morpho_markets",
     {
       description:
-        "Discover ALL Morpho Blue lending markets on Katana. Scans on-chain CreateMarket events to find every market ever created. Returns market ID, loan/collateral token symbols, LLTV, and current state (total supply, total borrow, utilization). No market IDs required — use this to explore available markets.",
+        "Discover ALL Morpho Blue lending markets on Katana. On mainnet, reads the Morpho API (Katana only): market ID, loan/collateral tokens, LLTV, supply/borrow/liquidity in tokens and USD, utilization, supply/borrow APY (with and without rewards), whether Morpho lists the market, and Morpho risk warnings. Falls back to on-chain event scans if the API is unavailable, and on testnet. No market IDs required — use this to explore available markets.",
       inputSchema,
     },
-    async ({ network, minSupplyUsd }) => {
+    async ({ network, minSupplyUsd, listedOnly }) => {
       const net = network as NetworkName;
+
+      if (useMorphoApi(net)) {
+        try {
+          const result = await listMarketsFromApi(minSupplyUsd, listedOnly);
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ network, ...result }) }],
+          };
+        } catch {
+          // API unavailable — fall back to on-chain discovery below
+        }
+      }
+
       const client = getClient(net);
       const morpho = MORPHO_CONTRACTS.mainnet.morpho;
 
@@ -213,7 +290,7 @@ export function registerListMarkets(server: McpServer) {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify({ network, totalMarkets: markets.length, filteredOut, markets }),
+            text: JSON.stringify({ network, source: "rpc", totalMarkets: markets.length, filteredOut, markets }),
           },
         ],
       };

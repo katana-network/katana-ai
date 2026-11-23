@@ -4,8 +4,10 @@ import { formatUnits, parseUnits, type Address } from "viem";
 import { getClient } from "../../clients.js";
 import { MORPHO_CONTRACTS, type NetworkName } from "../../config/contracts.js";
 import { morphoAbi } from "../../abis/morpho.js";
+import { getMarketParams } from "./market-params.js";
 import { erc20Abi } from "../../abis/erc20.js";
-import { getBestQuote } from "./swap-utils.js";
+import { getTokenDecimals } from "./token-meta.js";
+import { getBestQuote, quoteSafe } from "./swap-utils.js";
 
 // ─── Tool ────────────────────────────────────────────────────────────────────
 
@@ -34,10 +36,10 @@ export function registerAnalyzeLoop(server: McpServer) {
     "analyze_loop_strategy",
     {
       description:
-        "Analyze a Morpho looping strategy with real Sushi swap slippage. Given a market and collateral amount, simulates N loop iterations (supply → borrow → swap → supply) and the full unwind. Uses QuoterV2 for real price impact at each step. Returns per-loop breakdown, unwind analysis, and total slippage cost. NOTE: This tool queries multiple swap routes per loop iteration and may take 10-20 seconds. If it times out, try again — the RPC can be slow under load.",
+        "Analyze a Morpho looping strategy with real Sushi swap slippage. Given a market and collateral amount, simulates N loop iterations (supply → borrow → swap → supply) and the full unwind. Uses QuoterV2 for real price impact at each step. Returns per-loop breakdown, unwind analysis, and total slippage cost. NOTE: This tool makes many swap-quote requests (several per loop iteration) and may take 10-30 seconds. On the free public Katana RPC it can be rate-limited — it retries with backoff, and if it still fails it returns needsCustomRpc: true. Before running it, tell the user that reliable loop simulations require their own RPC provider (KATANA_RPC_URL); if the response includes an `rpc` note, relay it.",
       inputSchema,
     },
-    async ({ marketId, amount, loops, network }) => {
+    quoteSafe(async ({ marketId, amount, loops, network }) => {
       const net = network as NetworkName;
       const client = getClient(net);
       const morpho = MORPHO_CONTRACTS.mainnet.morpho;
@@ -45,12 +47,7 @@ export function registerAnalyzeLoop(server: McpServer) {
 
       // ── 1. Fetch market params and state ───────────────────────────
       const [params, state] = await Promise.all([
-        client.readContract({
-          address: morpho,
-          abi: morphoAbi,
-          functionName: "idToMarketParams",
-          args: [id],
-        }),
+        getMarketParams(net, id as `0x${string}`),
         client.readContract({
           address: morpho,
           abi: morphoAbi,
@@ -68,9 +65,9 @@ export function registerAnalyzeLoop(server: McpServer) {
       // All 6 calls fire together via multicall batching on the client
       const [collSym, collDec, loanSym, loanDec] = await Promise.all([
         client.readContract({ address: collateralAddr, abi: erc20Abi, functionName: "symbol" }).catch(() => "???"),
-        client.readContract({ address: collateralAddr, abi: erc20Abi, functionName: "decimals" }).catch(() => 18),
+        getTokenDecimals(client, collateralAddr),
         client.readContract({ address: loanAddr, abi: erc20Abi, functionName: "symbol" }).catch(() => "???"),
-        client.readContract({ address: loanAddr, abi: erc20Abi, functionName: "decimals" }).catch(() => 18),
+        getTokenDecimals(client, loanAddr),
       ]);
 
       const collSymbol = collSym as string;
@@ -301,6 +298,6 @@ export function registerAnalyzeLoop(server: McpServer) {
           { type: "text" as const, text: JSON.stringify(response) },
         ],
       };
-    }
+    })
   );
 }

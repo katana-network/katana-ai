@@ -4,6 +4,7 @@ import { parseUnits, encodeFunctionData, type Address } from "viem";
 import { getClient } from "../../clients.js";
 import { MORPHO_CONTRACTS, getTokenByAddress, type NetworkName } from "../../config/contracts.js";
 import { morphoAbi } from "../../abis/morpho.js";
+import { getMarketParams } from "./market-params.js";
 import { erc20Abi } from "../../abis/erc20.js";
 import { getChain } from "../../config/chains.js";
 
@@ -43,12 +44,7 @@ export function registerBuildBorrow(server: McpServer) {
       const morphoAddr = MORPHO_CONTRACTS.mainnet.morpho;
       const id = marketId as `0x${string}`;
 
-      const params = await client.readContract({
-        address: morphoAddr,
-        abi: morphoAbi,
-        functionName: "idToMarketParams",
-        args: [id],
-      });
+      const params = await getMarketParams(net, id as `0x${string}`);
 
       // Try known token config first, then RPC
       const knownToken = getTokenByAddress(net, params.loanToken as string);
